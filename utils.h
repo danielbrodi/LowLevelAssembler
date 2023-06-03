@@ -1,5 +1,5 @@
 /*********************************FILE__HEADER*********************************\
-* File:					macro.h
+* File:					utils.h
 * Author:				Daniel Brodsky			 		  												  								
 * Date:					June-2023			   								
 * Description:			
@@ -12,38 +12,11 @@
 /************************* Functions  Implementations *************************/
 
 /******************************************************************************/
-#ifndef MAMAN14_MACRO_H
-#define MAMAN14_MACRO_H
+#ifndef MAMAN14_UTILS_H
+#define MAMAN14_UTILS_H
 
-typedef struct {
-    char **commands;
-    int size;
-    int capacity;
-} Vector;
+char *my_strdup(const char *s);
 
-typedef struct {
-    char *name;
-    Vector *commands;
-} Macro;
-
-typedef struct {
-    Macro **macros;
-    int size;
-    int capacity;
-} MacroVector;
-
-Vector *new_vector();
-
-void push_back(Vector *v, char *value);
-
-void free_vector(Vector *v);
-
-MacroVector *new_macro_vector();
-
-void push_back_macro(MacroVector *mv, Macro *m);
-
-Macro *new_macro(char *name);
-
-void free_macro(Macro *m);
+int filter_line(const char *line);
 
 #endif
