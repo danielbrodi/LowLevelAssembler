@@ -5,7 +5,75 @@
 #include "macro.h"
 #include "utils.h"
 
-int main() {
+typedef enum {
+    OPERAND_TYPE_NONE,
+    OPERAND_TYPE_VARIABLE,
+    OPERAND_TYPE_VARIABLE_OR_REGISTER,
+    OPERAND_TYPE_ALL
+} OperandType;
+
+char *commandsList[] = {
+        "mov",
+        "cmp",
+        "add",
+        "sub",
+        "not",
+        "clr",
+        "lea",
+        "inc",
+        "dec",
+        "jmp",
+        "bne",
+        "red",
+        "prn",
+        "jsr",
+        "rts",
+        "stop"
+};
+
+OperandType operandTypes[][2] = {
+        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, // mov
+        {OPERAND_TYPE_ALL,      OPERAND_TYPE_ALL},                 // cmp
+        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, // add
+        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, // sub
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // not
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // clr
+        {OPERAND_TYPE_VARIABLE, OPERAND_TYPE_VARIABLE_OR_REGISTER}, //lea
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // inc
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // dec
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // jmp
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // bne
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // red
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_ALL},                 // prn
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, // jsr
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_NONE},                // rts
+        {OPERAND_TYPE_NONE,     OPERAND_TYPE_NONE}                 // stop
+};
+
+int paramCount[] = {
+        2,  // mov
+        2,  // cmp
+        2,  // add
+        2,  // sub
+        1,  // not
+        1,  // clr
+        2,  // lea
+        1,  // inc
+        1,  // dec
+        1,  // jmp
+        1,  // bne
+        1,  // red
+        1,  // prn
+        1,  // jsr
+        0,  // rts
+        0   // stop
+};
+
+int processInput(char *assembly_file_name) {
+
+}
+
+int preProcess() {
     /* If the line starts with a macro invocation, expand it */
     Macro *macroToExpand = NULL;
     int i;
