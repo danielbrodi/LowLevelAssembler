@@ -88,6 +88,20 @@ char *my_strdup(const char *s) {
     return new_str;
 }
 
+int filter_line(char *line) {
+    /* Remove leading spaces */
+    char start = line[0];
+    printf("for line: %s the start is %c!\n", line, start);
+    /* Check if the line is a comment or blank line */
+    if (start == ';' || start == '\n' || start == '\t') {
+        printf("RETURNING THIS IS COMMENT!");
+        return 1;
+    }
+
+    /* If it's not, it's a valid line */
+    return 0;
+}
+
 int main() {
     /* If the line starts with a macro invocation, expand it */
     Macro *macroToExpand = NULL;
@@ -100,6 +114,9 @@ int main() {
 
     /* First pass: build the list of macros */
     while (fgets(line, sizeof(line), inputFile)) {
+        if (1 == filter_line(line)) {
+            continue;
+        }
         /* If the line starts a macro definition */
         if (strncmp(line, "mcro", 4) == 0) {
             /* Remove the newline at the end of the line, if present */
@@ -127,6 +144,9 @@ int main() {
 
 /* Second pass: output the file, expanding macros */
     while (fgets(line, sizeof(line), inputFile)) {
+        if (1 == filter_line(line)) {
+            continue;
+        }
         /* Remove the newline at the end of the line, if present */
         if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = '\0';
 
@@ -138,8 +158,7 @@ int main() {
             continue;
         }
 
-        /* Check if the line is a macro invocation */
-        Macro *macroToExpand = NULL;
+        macroToExpand = NULL;
         for (i = 0; i < macroVector->size; ++i) {
             if (strcmp(line, macroVector->macros[i]->name) == 0) {
                 macroToExpand = macroVector->macros[i];
