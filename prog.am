@@ -1,5 +1,8 @@
 first line
+MAIN: this is main label
+LOOP: this is loop label
 after macro definition before macro call
+LENGTH: .data 6 -9 -15
 this is inside macro1
 this is inside macro2
 after macro call

@@ -413,6 +413,7 @@ int ProcessInput(char *words[], int num_of_words) {
             break;
         }
     }
+
     valid = validate_params(commandIdx, (const char **) words, num_of_params);
     if (valid != 0) {
         PrintErrorMessage(1, valid == PARAM_TYPE_COMPLEX ? UNDEFINED_COMPLEX_VAR
