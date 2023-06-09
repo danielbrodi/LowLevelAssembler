@@ -20,14 +20,8 @@
 #define ERROR (-1)
 
 typedef enum {
-    IN_LABEL_OR_COMMAND,
-    AFTER_LABEL,
-    AFTER_LABEL_OR_COMMAND,
-    IN_COMMAND,
-    AFTER_COMMAND,
-    IN_OPERAND,
-    AFTER_OPERAND,
-    END_OF_LINE
+    IN_LABEL_OR_COMMAND, AFTER_LABEL, IN_COMMAND, AFTER_COMMAND,
+    AFTER_LABEL_OR_COMMAND, IN_OPERAND, AFTER_OPERAND, EXPECTING_COMMA
 } State;
 
 void PrintErrorMessage(int condition, int errorMessageId);
@@ -426,8 +420,7 @@ void ParseFile() {
         int has_label = 0; /* A flag indicating if a label exists */
         int first_operand = 1;
 
-        input_words[num_of_words++] = buffer;
-        line_number++;
+        input_words[(num_of_words)++] = buffer;
 
         for (i = 0; buffer[i] != '\0'; i++) {
             char c = buffer[i];
@@ -438,9 +431,8 @@ void ParseFile() {
                         buffer[i] = '\0';
                         state = AFTER_LABEL_OR_COMMAND;
                     } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                        continue;  /* Continue with next character */
+                        PrintErrorMessage(1, ILLEGAL_COMMA);
+                        continue;
                     } else if (c == ':') {
                         has_label = 1;  /* Mark that a label is present */
                         buffer[i] = '\0';
@@ -457,29 +449,6 @@ void ParseFile() {
                         continue;  /* Continue with next character */
                     }
                     break;
-                case IN_COMMAND:
-                    if (isspace(c)) {
-                        buffer[i] = '\0';
-                        state = AFTER_COMMAND;
-                        first_operand = 1;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                    }
-                    break;
-                case AFTER_COMMAND:
-                    if (isalnum(c) || c == '@') {
-                        if (!first_operand) {
-                            printf("Error on line %d: Missing comma before char %c\n",
-                                   line_number, c);
-                        }
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_OPERAND;
-                        first_operand = 0;
-                    } else if (c == ',') {
-                        state = AFTER_OPERAND;
-                    }
-                    break;
                 case AFTER_LABEL_OR_COMMAND:
                     if (has_label && isalnum(c)) {
                         input_words[num_of_words++] = buffer + i;
@@ -494,47 +463,62 @@ void ParseFile() {
                         continue;  /* Continue with next character */
                     }
                     break;
+                case IN_COMMAND:
+                    if (isspace(c)) {
+                        buffer[i] = '\0';
+                        state = AFTER_COMMAND;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                        continue;
+                    }
+                    break;
+                case AFTER_COMMAND:
+                    if (isalnum(c)) {
+                        input_words[(num_of_words)++] = buffer + i;
+                        state = IN_OPERAND;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                        continue;
+                    }
+                    break;
                 case IN_OPERAND:
                     if (c == ',') {
                         buffer[i] = '\0';
                         state = AFTER_OPERAND;
-                        first_operand = 1;  /* Set the flag to expect a comma before the next operand */
-                    } else if (isspace(c)) {
-                        buffer[i] = '\0';
-                        state = AFTER_OPERAND;  /* Change state to AFTER_OPERAND if space is encountered */
-                        first_operand = 0;  /* The next character should be a comma */
-                    } else if (!isalnum(c) && c != '@') {
-                        printf("Error on line %d: Invalid character %c in operand\n",
-                               line_number, c);
+                    } else {
+                        state = EXPECTING_COMMA;
                     }
                     break;
-                case AFTER_OPERAND:
-                    if (isalnum(c) || c == '@') {
-                        if (!first_operand) {
-                            printf("Error on line %d: Missing comma before char %c\n",
-                                   line_number, c);
-                        }
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_OPERAND;
+                case EXPECTING_COMMA:
+                    if (isalnum(c)) {
+                        printf("Error on line %d: Missing comma before char %c\n",
+                               line_number, c);
                     } else if (c == ',') {
-                        first_operand = 1;
-                    } else if (isspace(c)) {
-                        state = END_OF_LINE;
+                        state = AFTER_OPERAND;
                     }
                     break;
 
-                case END_OF_LINE:
-                    if (!isspace(c) && c != '\n') {
-                        printf("Error on line %d: Extra text after last operand\n",
+                case AFTER_OPERAND:
+                    if (isalnum(c)) {
+                        input_words[(num_of_words)++] = buffer + i;
+                        state = IN_OPERAND;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Multiple consecutive commas\n",
                                line_number);
+                        continue;
                     }
                     break;
             }
         }
 
+        if (AFTER_OPERAND == state) {
+            printf("Error on line %d: Line ends with a comma\n", line_number);
+        }
+
         input_words[num_of_words] = NULL;
     }
-
     fclose(file);
 }
 

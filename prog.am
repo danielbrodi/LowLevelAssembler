@@ -1,4 +1,1 @@
-MAIN:, mov, @r9 LENGTH
-LOOP: jmp L1 3
-prn -5
-bne LOOP
+TAVIT: mov 3          , @r9
