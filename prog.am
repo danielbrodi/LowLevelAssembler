@@ -1,1 +1,1 @@
-TAVIT: mov 3          , @r9
+TAVIT: .string 3 , 4

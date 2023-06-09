@@ -405,6 +405,9 @@ void ParseFile() {
     char *input_words[256];
     int line_number = 0;
     State state = IN_LABEL_OR_COMMAND;
+    int num_of_words = 0;
+    int i = 0;
+    int has_label = 0; /* A flag indicating if a label exists */
 
     if (file == NULL) {
         printf("Failed to open file\n");
@@ -412,13 +415,9 @@ void ParseFile() {
     }
 
     while (fgets(buffer, sizeof(buffer), file)) {
-        int num_of_words = 0;
+        num_of_words = 0;
         state = IN_LABEL_OR_COMMAND;
-        int after_comma = 0;
-        int new_operand = 0;
-        int i = 0;
-        int has_label = 0; /* A flag indicating if a label exists */
-        int first_operand = 1;
+        has_label = 0; /* A flag indicating if a label exists */
 
         input_words[(num_of_words)++] = buffer;
 
@@ -456,7 +455,6 @@ void ParseFile() {
                     } else if (!has_label && (isalnum(c) || c == '@')) {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_OPERAND;
-                        new_operand = 1;
                     } else if (c == ',') {
                         printf("Error on line %d: Illegal comma\n",
                                line_number);
@@ -496,6 +494,7 @@ void ParseFile() {
                         printf("Error on line %d: Missing comma before char %c\n",
                                line_number, c);
                     } else if (c == ',') {
+                        buffer[i] = '\0';
                         state = AFTER_OPERAND;
                     }
                     break;
@@ -518,6 +517,11 @@ void ParseFile() {
         }
 
         input_words[num_of_words] = NULL;
+        printf("For line number %d the words are:\n", line_number + 1);
+        for (i = 0; i < num_of_words; i++) {
+            printf("Word number %d: %s \n", i + 1, input_words[i]);
+        }
+        printf("\n");
     }
     fclose(file);
 }
