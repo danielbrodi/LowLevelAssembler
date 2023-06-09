@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -ansi -pedantic -Wall
 
-SRC = gpt.c macro.c utils.c
+SRC = gpt_daniel.c macro.c utils.c
 
 TARGET = mycomp
 

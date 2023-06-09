@@ -7,28 +7,28 @@
 #include "macro.h"
 #include "utils.h"
 
+#define DONE 2
 #define MAX_LINE_LENGTH 80
 #define MAX_LABEL_LENGTH 32
 #define MAX_LINES 1000
 #define INPUT_FILE_NAME "prog.as"
+#define VALID_FILE_NAME "valid.as"
 #define OUTPUT_FILE_NAME "prog.am"
+#define AM_FILE "prog.am"
 #define RUN_PROGRAM 1
 #define STOP (-1)
 #define ERROR (-1)
 
-#define ILLEGAL_COMMA 0
-#define MISSING_COMMA 1
-#define EXTRA_COMMAS 2
-#define EXTRA_TEXT 3
-#define UNDEFINED_COMMAND 4
-#define NOT_ENOUGH_PARAMS 5
-#define UNDEFINED_COMPLEX_VAR 6
-#define INVALID_PARAM 7
-
-#define IN_COMMAND 0
-#define AFTER_COMMAND 1
-#define IN_OPERAND 2
-#define AFTER_OPERAND 3
+typedef enum {
+    IN_LABEL_OR_COMMAND,
+    AFTER_LABEL,
+    AFTER_LABEL_OR_COMMAND,
+    IN_COMMAND,
+    AFTER_COMMAND,
+    IN_OPERAND,
+    AFTER_OPERAND,
+    END_OF_LINE
+} State;
 
 void PrintErrorMessage(int condition, int errorMessageId);
 
@@ -142,6 +142,11 @@ typedef enum {
     ENTRY_INSTRUCTION,
     STRING_INSTRUCTION
 } Instruction;
+
+#define ILLEGAL_COMMA 0
+#define MISSING_COMMA 1
+#define EXTRA_COMMAS 2
+#define EXTRA_TEXT 3
 
 typedef enum {
     OPERATION_NOT_EXIST = 0,
@@ -294,17 +299,17 @@ int checkLabels(char *am_file_name) {
     return 0;
 }
 
-int preProcess(const char *input_file, const char *output_file) {
+FILE *preProcess(const char *input_file, const char *output_file) {
     /* If the line starts with a macro invocation, expand it */
     Macro *macroToExpand = NULL;
     int i;
     FILE *inputFile = fopen(input_file, "r");
     if (NULL == inputFile) {
-        return FAILURE;
+        return NULL;
     }
     FILE *outputFile = fopen(output_file, "w");
     if (NULL == outputFile) {
-        return FAILURE;
+        return NULL;
     }
     /*TODO CHECK IF ERRORS WHILE OPEN FILES */
     char line[1024];
@@ -387,115 +392,172 @@ int preProcess(const char *input_file, const char *output_file) {
     free(macroVector->macros);
     free(macroVector);
 
-    return SUCCESS;
+    return outputFile;
 }
 
-int GetInput(char buffer[]) {
-    do {
-        if (fgets(buffer, MAX_LINE_LENGTH, stdin) == NULL) {
-            /*	exits the program if entered character by the user is EOF	*/
-            printf("STOPPED BY EOF goodbye\n");
-            return STOP;
-        }
-
+int GetInput(char buffer[], FILE *fp) {
+    if (fgets(buffer, MAX_LINE_LENGTH, fp) != NULL) {
         /* remove trailing newline character */
         buffer[strcspn(buffer, "\n")] = 0;
-
-        /* exits the program if entered input by the user is "stop" */
-        if (strcmp("stop", buffer) == 0) {
-            printf("USER CHOSE TO STOP BY COMMAND STOP, goodbye..\n");
-            return STOP;
-        }
-
-    } while (buffer[0] == '\0');
-
-    return RUN_PROGRAM;
-}
-
-int ParseInput(char *buffer, char **input_words, int *num_of_words) {
-    int state = IN_COMMAND;
-    int i = 0;
-
-    input_words[(*num_of_words)++] = buffer;
-
-    for (i = 0; buffer[i] != '\0'; i++) {
-        char c = buffer[i];
-
-        switch (state) {
-            case IN_COMMAND:
-                if (isspace(c)) {
-                    buffer[i] = '\0';
-                    state = AFTER_COMMAND;
-                } else if (c == ',') {
-                    PrintErrorMessage(1, ILLEGAL_COMMA);
-                    return ERROR;
-                }
-                break;
-            case AFTER_COMMAND:
-                if (isalnum(c)) {
-                    input_words[(*num_of_words)++] = buffer + i;
-                    state = IN_OPERAND;
-                } else if (c == ',') {
-                    PrintErrorMessage(1, ILLEGAL_COMMA);
-                    return ERROR;
-                }
-                break;
-            case IN_OPERAND:
-                if (c == ',') {
-                    buffer[i] = '\0';
-                    state = AFTER_OPERAND;
-                } else if (isspace(c)) {
-                    PrintErrorMessage(1, MISSING_COMMA);
-                    return ERROR;
-                }
-                break;
-            case AFTER_OPERAND:
-                if (isalnum(c)) {
-                    input_words[(*num_of_words)++] = buffer + i;
-                    state = IN_OPERAND;
-                } else if (c == ',') {
-                    PrintErrorMessage(1, EXTRA_COMMAS);
-                    return ERROR;
-                }
-                break;
-        }
+        return RUN_PROGRAM;
     }
 
-    if (AFTER_OPERAND == state) {
-        PrintErrorMessage(1, EXTRA_TEXT);
-        return ERROR;
+    return DONE;
+}
+
+void ParseFile() {
+    FILE *file = fopen("prog.am", "r");
+    char buffer[256];
+    char *input_words[256];
+    int line_number = 0;
+    State state = IN_LABEL_OR_COMMAND;
+
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
     }
 
-    input_words[*num_of_words] = NULL;
-    return ProcessInput(input_words, *num_of_words);
+    while (fgets(buffer, sizeof(buffer), file)) {
+        int num_of_words = 0;
+        state = IN_LABEL_OR_COMMAND;
+        int after_comma = 0;
+        int new_operand = 0;
+        int i = 0;
+        int has_label = 0; /* A flag indicating if a label exists */
+        int first_operand = 1;
+
+        input_words[num_of_words++] = buffer;
+        line_number++;
+
+        for (i = 0; buffer[i] != '\0'; i++) {
+            char c = buffer[i];
+
+            switch (state) {
+                case IN_LABEL_OR_COMMAND:
+                    if (isspace(c)) {
+                        buffer[i] = '\0';
+                        state = AFTER_LABEL_OR_COMMAND;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                        continue;  /* Continue with next character */
+                    } else if (c == ':') {
+                        has_label = 1;  /* Mark that a label is present */
+                        buffer[i] = '\0';
+                        state = AFTER_LABEL;
+                    }
+                    break;
+                case AFTER_LABEL:
+                    if (isalnum(c)) {
+                        input_words[num_of_words++] = buffer + i;
+                        state = IN_COMMAND;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                        continue;  /* Continue with next character */
+                    }
+                    break;
+                case IN_COMMAND:
+                    if (isspace(c)) {
+                        buffer[i] = '\0';
+                        state = AFTER_COMMAND;
+                        first_operand = 1;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                    }
+                    break;
+                case AFTER_COMMAND:
+                    if (isalnum(c) || c == '@') {
+                        if (!first_operand) {
+                            printf("Error on line %d: Missing comma before char %c\n",
+                                   line_number, c);
+                        }
+                        input_words[num_of_words++] = buffer + i;
+                        state = IN_OPERAND;
+                        first_operand = 0;
+                    } else if (c == ',') {
+                        state = AFTER_OPERAND;
+                    }
+                    break;
+                case AFTER_LABEL_OR_COMMAND:
+                    if (has_label && isalnum(c)) {
+                        input_words[num_of_words++] = buffer + i;
+                        state = IN_COMMAND;
+                    } else if (!has_label && (isalnum(c) || c == '@')) {
+                        input_words[num_of_words++] = buffer + i;
+                        state = IN_OPERAND;
+                        new_operand = 1;
+                    } else if (c == ',') {
+                        printf("Error on line %d: Illegal comma\n",
+                               line_number);
+                        continue;  /* Continue with next character */
+                    }
+                    break;
+                case IN_OPERAND:
+                    if (c == ',') {
+                        buffer[i] = '\0';
+                        state = AFTER_OPERAND;
+                        first_operand = 1;  /* Set the flag to expect a comma before the next operand */
+                    } else if (isspace(c)) {
+                        buffer[i] = '\0';
+                        state = AFTER_OPERAND;  /* Change state to AFTER_OPERAND if space is encountered */
+                        first_operand = 0;  /* The next character should be a comma */
+                    } else if (!isalnum(c) && c != '@') {
+                        printf("Error on line %d: Invalid character %c in operand\n",
+                               line_number, c);
+                    }
+                    break;
+                case AFTER_OPERAND:
+                    if (isalnum(c) || c == '@') {
+                        if (!first_operand) {
+                            printf("Error on line %d: Missing comma before char %c\n",
+                                   line_number, c);
+                        }
+                        input_words[num_of_words++] = buffer + i;
+                        state = IN_OPERAND;
+                    } else if (c == ',') {
+                        first_operand = 1;
+                    } else if (isspace(c)) {
+                        state = END_OF_LINE;
+                    }
+                    break;
+
+                case END_OF_LINE:
+                    if (!isspace(c) && c != '\n') {
+                        printf("Error on line %d: Extra text after last operand\n",
+                               line_number);
+                    }
+                    break;
+            }
+        }
+
+        input_words[num_of_words] = NULL;
+    }
+
+    fclose(file);
 }
+
 
 int main() {
-
-    char user_input[MAX_INPUT] = {0};
+    int status;
+    char user_input[MAX_LINE_LENGTH] = {0};
     int num_of_words = 0;
     char *user_command_tokens[MAX_LINE_LENGTH] = {0};
+    FILE *fp = NULL;
     int i = 0;
 
-    if (FAILURE == preProcess(INPUT_FILE_NAME, OUTPUT_FILE_NAME)) {
+    preProcess(VALID_FILE_NAME, "asdas.am");
+    fp = fopen(OUTPUT_FILE_NAME, "r");
+    if (fp == NULL) {
+        printf("Failed to open file in `main`\n");
         return FAILURE;
     }
+
     checkLabels(OUTPUT_FILE_NAME);
-    while (1) {
-        memset(user_input, 0, sizeof(user_input));
-        memset(user_command_tokens, 0, sizeof(user_command_tokens));
-        num_of_words = 0;
+    ParseFile();
 
-        if (STOP == GetInput(user_input)) {
-            break;
-        }
-
-        if (ERROR == ParseInput(user_input, user_command_tokens,
-                                &num_of_words)) {
-            continue;
-        };
-    }
-
+    fclose(fp);
     return 0;
 }
 
@@ -503,40 +565,4 @@ void PrintErrorMessage(int condition, int errorMessageId) {
     if (condition) {
         fprintf(stdout, "Error: %s\n", ErrorMessages[errorMessageId]);
     }
-}
-int checkNumbers(char *am_file_name) {
-int i;
-    FILE *file = fopen(am_file_name, "r");
-
-    if (!file) {
-        printf("File not found: %s\n", am_file_name);
-        return -1;
-    }
-
-    Label labels[MAX_LINES];
-    int label_count = 0;
-    char line[MAX_LINE_LENGTH];
-    int line_number = 0;
-
-    /* First scan to validate and collect labels */
-    while (fgets(line, sizeof(line), file)) {
-        line_number++;
-
-        /* Check if line starts with a label */
-        char *label_end = strchr(line, ':');
-        if (label_end) {
-            /* Extract label */
-            int label_length = label_end - line;
-            /* Check if label length is less than 31 */
-            if (label_length >= MAX_LABEL_LENGTH) {
-                printf("Label length exceeds limit at line %d\n", line_number);
-                return -1;
-            }
-
-            /* Check if label is a saved word */
-            char new_label[MAX_LINE_LENGTH];
-            strncpy(new_label, line, label_length);
-            new_label[label_length] = '\0';
-
-            to_lowercase(new_label);
 }
