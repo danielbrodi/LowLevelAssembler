@@ -7,7 +7,7 @@ bne END
 L1: inc K
 bne LOOP
 END: stop
-STR: .string "abcdef"   
+STR: .string "abcdef"
 k:
 LENGTH: .data 4.4 4
 K: .data 22 56

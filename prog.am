@@ -1,1 +1,4 @@
-hello: mov 4 ,            4
+MAIN: mov @r9 LENGTH
+LOOP: jmp L1
+prn -5
+bne LOOP
