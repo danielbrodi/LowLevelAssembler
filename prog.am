@@ -1,1 +1,1 @@
-TAVIT: .string 3 , 4
+hello: mov 4 ,            4

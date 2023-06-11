@@ -9,5 +9,5 @@ bne LOOP
 END: stop
 STR: .string "abcdef"   
 k:
-LENGTH: .data -7 a
+LENGTH: .data 4.4 4
 K: .data 22 56

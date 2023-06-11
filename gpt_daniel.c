@@ -36,16 +36,6 @@ typedef enum {
     OPERAND_TYPE_ALL
 } OperandType;
 
-typedef enum {
-    SUCCESS,
-    FAILURE
-} Status;
-
-typedef enum {
-    FALSE,
-    TRUE
-} Boolean;
-
 typedef struct {
     char name[MAX_LABEL_LENGTH];
     int line_number;
