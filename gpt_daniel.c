@@ -32,8 +32,10 @@ void PrintErrorMessage(int condition, int errorMessageId);
 
 typedef enum {
     OPERAND_TYPE_NONE,
-    OPERAND_TYPE_VARIABLE,
-    OPERAND_TYPE_VARIABLE_OR_REGISTER,
+    OPERAND_TYPE_LABEL,
+    OPERAND_TYPE_REGISTER,
+    OPERAND_TYPE_NUMBER,
+    OPERAND_TYPE_LABEL_OR_REGISTER,
     OPERAND_TYPE_ALL
 } OperandType;
 
@@ -85,22 +87,22 @@ Label labels[MAX_LINES];
 int label_count = 0;
 
 OperandType operandTypes[][2] = {
-        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* mov */
-        {OPERAND_TYPE_ALL,      OPERAND_TYPE_ALL},                 /* cmp */
-        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* add */
-        {OPERAND_TYPE_ALL,      OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* sub */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* not */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* clr */
-        {OPERAND_TYPE_VARIABLE, OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* lea */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* inc */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* dec */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* jmp */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* bne */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* red */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_ALL},                 /* prn */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_VARIABLE_OR_REGISTER}, /* jsr */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_NONE},                /* rts */
-        {OPERAND_TYPE_NONE,     OPERAND_TYPE_NONE}                 /* stop */
+        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* mov */
+        {OPERAND_TYPE_ALL,               OPERAND_TYPE_ALL},               /* cmp */
+        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* add */
+        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* sub */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* not */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* clr */
+        {OPERAND_TYPE_LABEL,             OPERAND_TYPE_LABEL_OR_REGISTER}, /* lea */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* inc */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* dec */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jmp */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* bne */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* red */
+        {OPERAND_TYPE_ALL,               OPERAND_TYPE_NONE},               /* prn */
+        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jsr */
+        {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE},              /* rts */
+        {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE}               /* stop */
 };
 
 
@@ -288,6 +290,38 @@ int checkLabels(char *am_file_name) {
     return 0;
 }
 
+int isNumber(const char *str) {
+    while (*str) {
+        if (!isdigit(*str)) {
+            return 0;
+        }
+        str++;
+    }
+    return 1;
+}
+
+int isRegister(const char *str) {
+    int i;
+    for (i = 0; i < registersListSize; i++) {
+        if (strcmp(str, registersList[i]) ==
+            0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int isLabel(const char *str) {
+    int i;
+    for (i = 0; i < label_count; i++) {
+        if (strcmp(str, labels[i].name) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
 FILE *preProcess(const char *input_file, const char *output_file) {
     /* If the line starts with a macro invocation, expand it */
     Macro *macroToExpand = NULL;
@@ -404,60 +438,140 @@ Boolean isLabelExists(char *label) {
     return FALSE;
 }
 
-void ProcessLine(char *words[], int num_of_words, int has_label) {
-    int commandIdx = -1;
+int findCommand(char *command) {
     int i;
-    char *label = NULL;
-    char *command = NULL;
-    int num_of_params = -1;
-    int valid = 0;
-
-    if (has_label) {
-        label = words[0];
-        command = words[1];
-    } else {
-        command = words[0];
+    /* Convert command to lowercase */
+    to_lowercase(command);
+    for (i = 0; i < commandsListSize; i++) {
+        if (strcmp(commandsList[i], command) == 0) {
+            return i;
+        }
     }
+    return -1;
+}
 
-    if ((strcmp(command, "extern") == 0) ||
-        (strcmp(command, "entry") == 0)) {
-        if (has_label) {
-            if (num_of_words - 2 != 1) {
-                exit(1);
-            }
-        } else {
-            if (num_of_words - 1 != 1) {
-                exit(1);
-            }
+int isValidRegister(const char *param) {
+    int i;
+    if (param[0] != '@') {
+        return 0;
+    }
+    for (i = 0; i < registersListSize; i++) {
+        if (strcmp(param + 1, registersList[i]) == 0) {
+            return 1;
         }
-        if (strcmp(command, "entry") == 0) {
-            if (isLabelExists(command++)) {
-                exit(1);
-            }
-        } else {
-            if (!isLabelExists(command++)) {
-                exit(1);
-            }
-        }
+    }
+    return 0;
+}
+
+int isValidNumber(const char *param) {
+    char *endptr;
+    strtol(param, &endptr, 10);
+    if (*endptr == '\0') { /* Entire string is numeric */
+        return 1;
+    } else { /* String contains non-numeric characters */
+        return 0;
     }
 }
+
+int isValidLabel(const char *param) {
+    int i;
+    for (i = 0; i < label_count; i++) {
+        if (strcmp(param, labels[i].name) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int isDirectRegister(char *operand) {
+    if (operand[0] == '@') {
+        return isRegister(operand + 1);
+    }
+    return 0;
+}
+
+int isValidParam(char *param, OperandType expectedType) {
+    switch (expectedType) {
+        case OPERAND_TYPE_NONE:
+            return 0;
+        case OPERAND_TYPE_LABEL:
+            return isLabel(param);
+        case OPERAND_TYPE_REGISTER:
+            return isRegister(param) || isDirectRegister(param);
+        case OPERAND_TYPE_NUMBER:
+            return isNumber(param);
+        case OPERAND_TYPE_LABEL_OR_REGISTER:
+            return isLabel(param) || isRegister(param) ||
+                   isDirectRegister(param);
+        case OPERAND_TYPE_ALL:
+            return isLabel(param) || isRegister(param) || isNumber(param) ||
+                   isDirectRegister(param);
+        default:
+            return 0;
+    }
+}
+
+
+void ProcessLine(char *words[], int num_of_words, int has_label) {
+    int i;
+    int commandIdx = findCommand(
+            words[has_label]); /* You need to implement findCommand */
+    if (commandIdx == -1) {
+        printf("Command '%s' not found\n", words[has_label]);
+        return;
+    }
+
+    /* Validate number of parameters */
+    int expectedParamCount = paramCount[commandIdx];
+    if (num_of_words - 1 - has_label != expectedParamCount) {
+        printf("Incorrect number of parameters for command '%s'\n",
+               words[has_label]);
+        return;
+    }
+    /* Validate each parameter */
+    for (i = 1 + has_label; i < num_of_words; i++) {
+        OperandType expectedType = operandTypes[commandIdx][i - 1 - has_label];
+        if (!isValidParam(words[i], expectedType)) {
+            printf("Invalid parameter '%s' for command '%s'\n", words[i],
+                   words[has_label]);
+            return;
+        }
+    }
+
+    /* If there's a label, validate it */
+    if (has_label) {
+        if (!isLabel(words[0])) {
+            printf("Invalid label '%s'\n", words[0]);
+            return;
+        }
+    }
+
+    /* Execute the command, or add it to a list of commands to execute later, etc. */
+    /* Your implementation here */
+}
+
 
 void ParseFile() {
     FILE *file = fopen("prog.am", "r");
     char buffer[256];
     char *input_words[256];
     int line_number = 0;
-    State state = IN_LABEL_OR_COMMAND;
+    State state = -1;
     int num_of_words = 0;
     int i = 0;
     int has_label = 0; /* A flag indicating if a label exists */
-
+    int len = -1;
     if (file == NULL) {
         printf("Failed to open file\n");
         return;
     }
 
     while (fgets(buffer, sizeof(buffer), file)) {
+        /* Remove newline character at the end of the buffer, if exists */
+        len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
         num_of_words = 0;
         state = IN_LABEL_OR_COMMAND;
         has_label = 0; /* A flag indicating if a label exists */
@@ -570,9 +684,6 @@ void ParseFile() {
                     break;
             }
 
-            if (AFTER_OPERAND_AND_WAITING == state) {
-                printf("Error on line %d: Line ends with a comma\n", line_number);
-            }
         }
         input_words[num_of_words] = NULL;
         ProcessLine(input_words, num_of_words, has_label);

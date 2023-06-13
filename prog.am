@@ -1,4 +1,17 @@
-MAIN: mov @r9 LENGTH
-LOOP: jmp L1
-prn -5
-bne LOOP
+START: mov @r3, @r2
+add START, NUM1
+sub @r1, NUM1
+not @r1
+clr @r2
+lea START, @r2
+inc @r3
+dec @r2
+jmp END
+bne END
+red @r3
+prn NUM1
+jsr START
+rts
+stop
+NUM1:  .data 5
+END:   .data 9
