@@ -1,3 +1,5 @@
+.entry START
+.extern EXTERNAL
 START: mov @r3, @r2
 add START, NUM1
 sub @r1, NUM1
@@ -13,5 +15,12 @@ prn NUM1
 jsr START
 rts
 stop
+.entry NUM2
+.extern NUM1
 NUM1:  .data 5
 END:   .data 9
+clr
+jsr
+.entry
+.extern
+.extern END

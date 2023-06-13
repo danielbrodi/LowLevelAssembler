@@ -431,12 +431,35 @@ int GetInput(char buffer[], FILE *fp) {
 Boolean isLabelExists(char *label) {
     int labelIdx = 0;
     for (; labelIdx < label_count; labelIdx++) {
-        if (strcmp(label, labels[labelIdx].name)) {
+        if (strcmp(label, labels[labelIdx].name) == 0) {
             return TRUE;
         }
     }
     return FALSE;
 }
+
+
+int findInstruction(const char *instruction) {
+    int instructionIdx;
+    const char* comparisonInstruction = instruction;
+
+    /* If the string starts with a dot, ignore the dot for comparison purposes */
+    if (instruction[0] == '.') {
+        comparisonInstruction = instruction + 1;
+    }
+
+    for (instructionIdx = 0; instructionIdx < instructionsListSize; instructionIdx++) {
+        printf("Debug: Comparing '%s' and '%s'\n", comparisonInstruction, instructionsList[instructionIdx]);
+        if (strcmp(comparisonInstruction, instructionsList[instructionIdx]) == 0) {
+            printf("Debug: Found instruction '%s'\n", comparisonInstruction);
+            return instructionIdx;
+        }
+    }
+    printf("Debug: Instruction '%s' not found\n", comparisonInstruction);
+    return -1;
+}
+
+
 
 int findCommand(char *command) {
     int i;
@@ -513,29 +536,66 @@ int isValidParam(char *param, OperandType expectedType) {
 
 
 void ProcessLine(char *words[], int num_of_words, int has_label) {
-    int i;
-    int commandIdx = findCommand(
-            words[has_label]); /* You need to implement findCommand */
-    if (commandIdx == -1) {
-        printf("Command '%s' not found\n", words[has_label]);
-        return;
-    }
 
-    /* Validate number of parameters */
-    int expectedParamCount = paramCount[commandIdx];
-    if (num_of_words - 1 - has_label != expectedParamCount) {
-        printf("Incorrect number of parameters for command '%s'\n",
-               words[has_label]);
-        return;
-    }
-    /* Validate each parameter */
-    for (i = 1 + has_label; i < num_of_words; i++) {
-        OperandType expectedType = operandTypes[commandIdx][i - 1 - has_label];
-        if (!isValidParam(words[i], expectedType)) {
-            printf("Invalid parameter '%s' for command '%s'\n", words[i],
+    int i;
+    int commandIdx = findCommand(words[has_label]);
+    int instructionIdx = findInstruction(words[has_label]);
+
+    if (commandIdx != -1) {
+        /* It's a command */
+        /* Validate number of parameters */
+        int expectedParamCount = paramCount[commandIdx];
+        if (num_of_words - 1 - has_label != expectedParamCount) {
+            printf("Incorrect number of parameters for command '%s'\n",
                    words[has_label]);
             return;
         }
+        /* Validate each parameter */
+        for (i = 1 + has_label; i < num_of_words; i++) {
+            OperandType expectedType = operandTypes[commandIdx][i - 1 -
+                                                                has_label];
+            if (!isValidParam(words[i], expectedType)) {
+                printf("Invalid parameter '%s' for command '%s'\n", words[i],
+                       words[has_label]);
+                return;
+            }
+        }
+    } else if (instructionIdx != -1) {
+        /* It's an instruction */
+        /* Here you might want to process the instruction. This might include validating parameters
+           (which can be different from command parameters), processing the instruction, etc. */
+        printf("Debug: Processing instruction '%s'\n", words[has_label]);
+        if (instructionIdx == ENTRY_INSTRUCTION || instructionIdx == EXTERN_INSTRUCTION) {
+            /* For entry and extern, there should only be one parameter */
+            printf("Debug: num_of_words = %d, has_label = %d, label = '%s'\n", num_of_words, has_label, words[1 + has_label]);
+            if (num_of_words - 1 - has_label != 1) {
+                printf("Incorrect number of parameters for instruction '%s'\n", words[has_label]);
+                return;
+            }
+            /* For entry, the label must exist */
+            if (instructionIdx == ENTRY_INSTRUCTION) {
+                if (!isLabelExists(words[1 + has_label])) {
+                    printf("Label '%s' does not exist\n", words[1 + has_label]);
+                    return;
+                } else {
+                    printf("Debug: Label '%s' exists\n", words[1 + has_label]);
+                }
+            }
+            /* For extern, the label must not exist */
+            if (instructionIdx == EXTERN_INSTRUCTION) {
+                if (isLabelExists(words[1 + has_label])) {
+                    printf("Label '%s' already exists\n", words[1 + has_label]);
+                    return;
+                } else {
+                    printf("Debug: Label '%s' does not exist\n", words[1 + has_label]);
+                }
+            }
+        } else {
+            printf("Debug: Not an entry or extern instruction\n");
+        }
+        /* TODO: Add handling for other instructions here */
+    } else {
+        printf("Debug: Not an instruction\n");
     }
 
     /* If there's a label, validate it */
@@ -545,9 +605,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             return;
         }
     }
-
-    /* Execute the command, or add it to a list of commands to execute later, etc. */
-    /* Your implementation here */
 }
 
 
