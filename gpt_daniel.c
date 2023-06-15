@@ -6,6 +6,7 @@
 
 #include "macro.h"
 #include "utils.h"
+#include "binary.h"
 
 #define DONE 2
 #define MAX_LINE_LENGTH 80
@@ -42,6 +43,7 @@ typedef enum {
 typedef struct {
     char name[MAX_LABEL_LENGTH];
     int line_number;
+    int asm_line_number;
 } Label;
 
 char *commandsList[] = {
@@ -99,7 +101,7 @@ OperandType operandTypes[][2] = {
         {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jmp */
         {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* bne */
         {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* red */
-        {OPERAND_TYPE_ALL,               OPERAND_TYPE_NONE},               /* prn */
+        {OPERAND_TYPE_NONE,              OPERAND_TYPE_ALL},               /* prn */
         {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jsr */
         {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE},              /* rts */
         {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE}               /* stop */
@@ -173,6 +175,12 @@ typedef enum {
     R6,
     R7
 } Registers;
+
+typedef enum {
+    NUMBER = 1,
+    LABEL = 3,
+    REGISTER = 5
+} Types;
 
 typedef struct line {
     long number;
@@ -291,6 +299,8 @@ int checkLabels(char *am_file_name) {
 }
 
 int isNumber(const char *str) {
+    if (*str == '-' || *str == '+') /* Check if the number is negative */
+        str++; /* Skip the minus sign */
     while (*str) {
         if (!isdigit(*str)) {
             return 0;
@@ -298,6 +308,17 @@ int isNumber(const char *str) {
         str++;
     }
     return 1;
+}
+
+int getRegisterId(const char *str) {
+    int i;
+    for (i = 0; i < registersListSize; i++) {
+        if (strcmp(str, registersList[i]) ==
+            0) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int isRegister(const char *str) {
@@ -316,6 +337,16 @@ int isLabel(const char *str) {
     for (i = 0; i < label_count; i++) {
         if (strcmp(str, labels[i].name) == 0) {
             return 1;
+        }
+    }
+    return 0;
+}
+
+int getLabelIndex(const char *str) {
+    int i;
+    for (i = 0; i < label_count; i++) {
+        if (strcmp(str, labels[i].name) == 0) {
+            return i;
         }
     }
     return 0;
@@ -441,24 +472,26 @@ Boolean isLabelExists(char *label) {
 
 int findInstruction(const char *instruction) {
     int instructionIdx;
-    const char* comparisonInstruction = instruction;
+    const char *comparisonInstruction = instruction;
 
     /* If the string starts with a dot, ignore the dot for comparison purposes */
     if (instruction[0] == '.') {
         comparisonInstruction = instruction + 1;
     }
 
-    for (instructionIdx = 0; instructionIdx < instructionsListSize; instructionIdx++) {
-        printf("Debug: Comparing '%s' and '%s'\n", comparisonInstruction, instructionsList[instructionIdx]);
-        if (strcmp(comparisonInstruction, instructionsList[instructionIdx]) == 0) {
-            printf("Debug: Found instruction '%s'\n", comparisonInstruction);
+    for (instructionIdx = 0;
+         instructionIdx < instructionsListSize; instructionIdx++) {
+        /* printf("Debug: Comparing '%s' and '%s'\n", comparisonInstruction,
+               instructionsList[instructionIdx]); */
+        if (strcmp(comparisonInstruction, instructionsList[instructionIdx]) ==
+            0) {
+            /* printf("Debug: Found instruction '%s'\n", comparisonInstruction); */
             return instructionIdx;
         }
     }
-    printf("Debug: Instruction '%s' not found\n", comparisonInstruction);
+    /* printf("Debug: Instruction '%s' not found\n", comparisonInstruction); */
     return -1;
 }
-
 
 
 int findCommand(char *command) {
@@ -534,12 +567,28 @@ int isValidParam(char *param, OperandType expectedType) {
     }
 }
 
+int findParameterType(char *operand) {
+    if (isNumber(operand)) {
+        printf("Checknig if %s is a number and the answer is %d.\n", operand,
+               isNumber(operand));
+        return NUMBER;
+    } else if (isLabel(operand)) {
+        return LABEL;
+    } else if (isRegister(operand) || isDirectRegister(operand)) {
+        return REGISTER;
+    } else {
+        return OPERAND_TYPE_NONE; /* not a valid type */
+    }
+}
 
 void ProcessLine(char *words[], int num_of_words, int has_label) {
 
     int i;
     int commandIdx = findCommand(words[has_label]);
     int instructionIdx = findInstruction(words[has_label]);
+    int paramTypes[2] = {0};
+    int paramType = -1;
+    char *paramWords[2] = {0};
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -551,51 +600,141 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             return;
         }
         /* Validate each parameter */
+        int operandTypeIndex = 0;
+        int paramIndex = 0;
         for (i = 1 + has_label; i < num_of_words; i++) {
-            OperandType expectedType = operandTypes[commandIdx][i - 1 -
-                                                                has_label];
-            if (!isValidParam(words[i], expectedType)) {
-                printf("Invalid parameter '%s' for command '%s'\n", words[i],
+            OperandType expectedType = operandTypes[commandIdx][operandTypeIndex];
+            while (expectedType == OPERAND_TYPE_NONE &&
+                   operandTypeIndex < 2) {
+                if (paramIndex >= 2) {
+                    printf("Too many parameters for command '%s'\n",
+                           words[has_label]);
+                    return;
+                }
+                paramTypes[paramIndex++] = OPERAND_TYPE_NONE;
+                expectedType = operandTypes[commandIdx][++operandTypeIndex];
+            }
+            if (expectedType == OPERAND_TYPE_NONE) {
+                printf("Too many parameters for command '%s'\n",
                        words[has_label]);
                 return;
             }
+            if (!isValidParam(words[i], expectedType)) {
+                printf("Invalid parameter '%s' for command '%s'\n",
+                       words[i], words[has_label]);
+                return;
+            }
+            if (paramIndex >= 2) {
+                printf("Too many parameters for command '%s'\n",
+                       words[has_label]);
+                return;
+            }
+            paramTypes[paramIndex] = findParameterType(words[i]);
+            paramWords[paramIndex] = words[i];
+            paramIndex++;
+            operandTypeIndex++;
+        }
+
+        printf("The index command is %d\n", commandIdx);
+        printf("The first param type is %d, the second param type is %d.\n",
+               paramTypes[0], paramTypes[1]);
+        printBinaryCommand(commandIdx, paramTypes[0], paramTypes[1]);
+
+        int first_register_id = 0;
+        int second_register_id = 0;
+
+        for (i = 0; i < 2; i++) {
+            paramType = paramTypes[i];
+            switch (paramType) {
+                case NUMBER:
+                    printBinaryPrameterInteger(atoi(paramWords[i]));
+                    break;
+                case REGISTER: {
+                    switch (i) {
+                        case 0:
+                            sscanf(paramWords[i], "%*[^0-9]%d",
+                                   &first_register_id);
+                            if (paramTypes[i + 1] == REGISTER) {
+                                sscanf(paramWords[i + 1], "%*[^0-9]%d",
+                                       &second_register_id);
+                            }
+                            break;
+                        case 1:
+                            if (paramTypes[i - 1] != REGISTER) {
+                                sscanf(paramWords[i - 1], "%*[^0-9]%d",
+                                       &first_register_id);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                }
+                case LABEL:
+                    printf("?\n");
+                    break;
+            }
+        }
+        if (first_register_id != 0 || second_register_id != 0) {
+            printBinaryPrameterRegister(first_register_id,
+                                        second_register_id);
         }
     } else if (instructionIdx != -1) {
         /* It's an instruction */
-        /* Here you might want to process the instruction. This might include validating parameters
-           (which can be different from command parameters), processing the instruction, etc. */
-        printf("Debug: Processing instruction '%s'\n", words[has_label]);
-        if (instructionIdx == ENTRY_INSTRUCTION || instructionIdx == EXTERN_INSTRUCTION) {
+        /* printf("Debug: Processing instruction '%s'\n", words[has_label]); */
+        if (instructionIdx == ENTRY_INSTRUCTION ||
+            instructionIdx == EXTERN_INSTRUCTION) {
             /* For entry and extern, there should only be one parameter */
-            printf("Debug: num_of_words = %d, has_label = %d, label = '%s'\n", num_of_words, has_label, words[1 + has_label]);
+            /* printf("Debug: num_of_words = %d, has_label = %d, label = '%s'\n",
+                   num_of_words, has_label, words[1 + has_label]);*/
             if (num_of_words - 1 - has_label != 1) {
-                printf("Incorrect number of parameters for instruction '%s'\n", words[has_label]);
+                printf("Incorrect number of parameters for instruction '%s'\n",
+                       words[has_label]);
                 return;
             }
             /* For entry, the label must exist */
             if (instructionIdx == ENTRY_INSTRUCTION) {
                 if (!isLabelExists(words[1 + has_label])) {
-                    printf("Label '%s' does not exist\n", words[1 + has_label]);
+                    printf("Error: entry requires label that exists but Label '%s' does not exist\n",
+                           words[1 + has_label]);
                     return;
                 } else {
-                    printf("Debug: Label '%s' exists\n", words[1 + has_label]);
+                    /* printf("Debug: Label '%s' exists\n",
+                            words[1 + has_label]); */
                 }
             }
             /* For extern, the label must not exist */
             if (instructionIdx == EXTERN_INSTRUCTION) {
                 if (isLabelExists(words[1 + has_label])) {
-                    printf("Label '%s' already exists\n", words[1 + has_label]);
+                    printf("Error: extern requires label that doesn't exist but Label '%s' already exists\n",
+                           words[1 + has_label]);
                     return;
                 } else {
-                    printf("Debug: Label '%s' does not exist\n", words[1 + has_label]);
+                    /* printf("Debug: Label '%s' does not exist\n",
+                            words[1 + has_label]); */
                 }
             }
         } else {
-            printf("Debug: Not an entry or extern instruction\n");
+            /*  printf("Debug: Not an entry or extern instruction\n"); */
         }
-        /* TODO: Add handling for other instructions here */
+        switch (instructionIdx) {
+            case STRING_INSTRUCTION:
+                printBinaryString(words[has_label + 1]);
+                break;
+            case DATA_INSTRUCTION:
+                for (i = 0; i < num_of_words - has_label - 1; i++) {
+                    printBinaryDataPrameter(atoi(words[i]));
+                }
+                break;
+            case EXTERN_INSTRUCTION:
+                printBinaryrPameterLabelExtern();
+                break;
+            case ENTRY_INSTRUCTION:
+                printf("?\n");
+                break;
+        }
     } else {
-        printf("Debug: Not an instruction\n");
+        /* printf("Debug: Not an instruction\n"); */
     }
 
     /* If there's a label, validate it */
@@ -605,6 +744,8 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             return;
         }
     }
+
+    /* Execute operation .... */
 }
 
 
@@ -614,6 +755,7 @@ void ParseFile() {
     char *input_words[256];
     int line_number = 0;
     State state = -1;
+    int labelIdx = -1;
     int num_of_words = 0;
     int i = 0;
     int has_label = 0; /* A flag indicating if a label exists */
@@ -636,7 +778,6 @@ void ParseFile() {
 
         for (i = 0; buffer[i] != '\0'; i++) {
             char c = buffer[i];
-
             switch (state) {
                 case IN_LABEL_OR_COMMAND:
                     if (isspace(c)) {
@@ -665,7 +806,7 @@ void ParseFile() {
                     if (has_label && isalnum(c)) {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_COMMAND;
-                    } else if (!has_label && (isalnum(c) || c == '@')) {
+                    } else if (!has_label && (isalnum(c) || c == '@' || c == '-' || c == '+')) {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
@@ -685,7 +826,7 @@ void ParseFile() {
                     }
                     break;
                 case AFTER_COMMAND:
-                    if (isalnum(c)) {
+                    if (isalnum(c) || c == '-' || c == '+') {
                         input_words[(num_of_words)++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
@@ -698,7 +839,7 @@ void ParseFile() {
                     if (c == ',') {
                         buffer[i] = '\0';
                         state = AFTER_OPERAND_AND_WAITING;
-                    } else if (!isalnum(c)) {
+                    } else if (!(isalnum(c) || c == '-' || c == '+')) {
                         state = EXPECTING_COMMA;
                     }
                     break;
@@ -717,7 +858,7 @@ void ParseFile() {
                     break;
 
                 case AFTER_OPERAND_AND_WAITING:
-                    if (isalnum(c)) {
+                    if (isalnum(c) || c == '-' || c == '+') {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
@@ -730,7 +871,7 @@ void ParseFile() {
                     break;
 
                 case AFTER_OPERAND:
-                    if (isalnum(c)) {
+                    if (isalnum(c) || c == '-' || c == '+') {
                         input_words[(num_of_words)++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
@@ -742,12 +883,22 @@ void ParseFile() {
             }
 
         }
+        for (i = 0; i < num_of_words; i++) {
+            printf("For line %d the word idx %d is: \"%s\".\n", line_number, i,
+                   input_words[i]);
+        }
         input_words[num_of_words] = NULL;
+        /*
+        if (has_label) {
+            labelIdx = getLabelIndex(input_words[0]);
+            labels[labelIdx].asm_line_number = line_number;
+        }
+         */
         ProcessLine(input_words, num_of_words, has_label);
     }
+
     fclose(file);
 }
-
 
 int main() {
     int status;
