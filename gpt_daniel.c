@@ -89,22 +89,22 @@ Label labels[MAX_LINES];
 int label_count = 0;
 
 OperandType operandTypes[][2] = {
-        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* mov */
-        {OPERAND_TYPE_ALL,               OPERAND_TYPE_ALL},               /* cmp */
-        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* add */
-        {OPERAND_TYPE_ALL,               OPERAND_TYPE_LABEL_OR_REGISTER}, /* sub */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* not */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* clr */
-        {OPERAND_TYPE_LABEL,             OPERAND_TYPE_LABEL_OR_REGISTER}, /* lea */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* inc */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* dec */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jmp */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* bne */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* red */
-        {OPERAND_TYPE_NONE,              OPERAND_TYPE_ALL},               /* prn */
-        {OPERAND_TYPE_LABEL_OR_REGISTER, OPERAND_TYPE_NONE}, /* jsr */
-        {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE},              /* rts */
-        {OPERAND_TYPE_NONE,              OPERAND_TYPE_NONE}               /* stop */
+        {OPERAND_TYPE_ALL,   OPERAND_TYPE_LABEL_OR_REGISTER}, /* mov */
+        {OPERAND_TYPE_ALL,   OPERAND_TYPE_ALL},               /* cmp */
+        {OPERAND_TYPE_ALL,   OPERAND_TYPE_LABEL_OR_REGISTER}, /* add */
+        {OPERAND_TYPE_ALL,   OPERAND_TYPE_LABEL_OR_REGISTER}, /* sub */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* not */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* clr */
+        {OPERAND_TYPE_LABEL, OPERAND_TYPE_LABEL_OR_REGISTER}, /* lea */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* inc */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* dec */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* jmp */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* bne */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* red */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_ALL},  /* prn */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_LABEL_OR_REGISTER}, /* jsr */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_NONE}, /* rts */
+        {OPERAND_TYPE_NONE,  OPERAND_TYPE_NONE}  /* stop */
 };
 
 
@@ -323,6 +323,7 @@ int getRegisterId(const char *str) {
 
 int isRegister(const char *str) {
     int i;
+    printf("CHecknig register %s!\n", str);
     for (i = 0; i < registersListSize; i++) {
         if (strcmp(str, registersList[i]) ==
             0) {
@@ -581,6 +582,53 @@ int findParameterType(char *operand) {
     }
 }
 
+void UpdateLines(char *words[], int num_of_words, int has_label) {
+    static int current_line_number = 100;
+    int i, commandIdx, commandOrderInWords;
+    char *command;
+
+    if (has_label) {
+        commandOrderInWords = 1;
+    } else {
+        commandOrderInWords = 0;
+    }
+
+    command = words[commandOrderInWords];
+    commandIdx = findCommand(command);
+
+    if (has_label) {
+        for (i = 0; i < label_count; i++) {
+            if (strcmp(words[0], labels[i].name) == 0) {
+                labels[i].asm_line_number = current_line_number;
+                break;
+            }
+        }
+    }
+
+    if (commandIdx >= 0) { /* If it's a command and not a instruction */
+        current_line_number += paramCount[commandIdx] + 1;
+        /* If both parameters are registers, we decrement the line count by 1 */
+        if (paramCount[commandIdx] == 2 &&
+            isValidParam(words[commandOrderInWords + 1],
+                         OPERAND_TYPE_REGISTER) &&
+            isValidParam(words[commandOrderInWords + 2],
+                         OPERAND_TYPE_REGISTER)) {
+            current_line_number--;
+        }
+    } else { /* It's a instruction */
+        if (strcmp(command, "string") == 0) {
+            /* Including the null character at the end of the string */
+            current_line_number += strlen(words[commandOrderInWords + 1]) + 1;
+        } else if (strcmp(command, "data") == 0) {
+            if (has_label) {
+                current_line_number += num_of_words - 2;
+            } else {
+                current_line_number += num_of_words - 1;
+            }
+        }
+    }
+}
+
 void ProcessLine(char *words[], int num_of_words, int has_label) {
 
     int i;
@@ -589,11 +637,12 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
     int paramTypes[2] = {0};
     int paramType = -1;
     char *paramWords[2] = {0};
+    int expectedParamCount = -1;
 
     if (commandIdx != -1) {
         /* It's a command */
         /* Validate number of parameters */
-        int expectedParamCount = paramCount[commandIdx];
+        expectedParamCount = paramCount[commandIdx];
         if (num_of_words - 1 - has_label != expectedParamCount) {
             printf("Incorrect number of parameters for command '%s'\n",
                    words[has_label]);
@@ -745,6 +794,8 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
         }
     }
 
+    UpdateLines(words, num_of_words, has_label);
+
     /* Execute operation .... */
 }
 
@@ -757,7 +808,7 @@ void ParseFile() {
     State state = -1;
     int labelIdx = -1;
     int num_of_words = 0;
-    int i = 0;
+    int i = 0, j = 0;
     int has_label = 0; /* A flag indicating if a label exists */
     int len = -1;
     if (file == NULL) {
@@ -771,6 +822,14 @@ void ParseFile() {
         if (len > 0 && buffer[len - 1] == '\n') {
             buffer[len - 1] = '\0';
         }
+
+        /* Skip quotes */
+        for (i = 0, j = 0; i < len; i++) {
+            if (buffer[i] != '"') {
+                buffer[j++] = buffer[i];
+            }
+        }
+        buffer[j] = '\0';
         num_of_words = 0;
         state = IN_LABEL_OR_COMMAND;
         has_label = 0; /* A flag indicating if a label exists */
@@ -806,7 +865,9 @@ void ParseFile() {
                     if (has_label && isalnum(c)) {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_COMMAND;
-                    } else if (!has_label && (isalnum(c) || c == '@' || c == '-' || c == '+')) {
+                    } else if (!has_label &&
+                               (isalnum(c) || c == '@' || c == '-' ||
+                                c == '+')) {
                         input_words[num_of_words++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
@@ -884,16 +945,11 @@ void ParseFile() {
 
         }
         for (i = 0; i < num_of_words; i++) {
-            printf("For line %d the word idx %d is: \"%s\".\n", line_number, i,
+            printf("For line %d the word idx %d is: \"%s\".\n", line_number,
+                   i,
                    input_words[i]);
         }
         input_words[num_of_words] = NULL;
-        /*
-        if (has_label) {
-            labelIdx = getLabelIndex(input_words[0]);
-            labels[labelIdx].asm_line_number = line_number;
-        }
-         */
         ProcessLine(input_words, num_of_words, has_label);
     }
 
@@ -916,8 +972,13 @@ int main() {
     }
 
     checkLabels(OUTPUT_FILE_NAME);
-    ParseFile();
 
+    ParseFile();
+    for (i = 0; i < label_count; i++) {
+        printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
+               labels[i].name, labels[i].line_number,
+               labels[i].asm_line_number);
+    }
     fclose(fp);
     return 0;
 }
