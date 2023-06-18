@@ -353,7 +353,6 @@ int getLabelIndex(const char *str) {
     return 0;
 }
 
-
 FILE *preProcess(const char *input_file, const char *output_file) {
     /* If the line starts with a macro invocation, expand it */
     Macro *macroToExpand = NULL;
@@ -470,7 +469,6 @@ Boolean isLabelExists(char *label) {
     return FALSE;
 }
 
-
 int findInstruction(const char *instruction) {
     int instructionIdx;
     const char *comparisonInstruction = instruction;
@@ -493,7 +491,6 @@ int findInstruction(const char *instruction) {
     /* printf("Debug: Instruction '%s' not found\n", comparisonInstruction); */
     return -1;
 }
-
 
 int findCommand(char *command) {
     int i;
@@ -597,12 +594,7 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
     commandIdx = findCommand(command);
 
     if (has_label) {
-        for (i = 0; i < label_count; i++) {
-            if (strcmp(words[0], labels[i].name) == 0) {
-                labels[i].asm_line_number = current_line_number;
-                break;
-            }
-        }
+        labels[getLabelIndex(words[0])].asm_line_number = current_line_number;
     }
 
     if (commandIdx >= 0) { /* If it's a command and not a instruction */
@@ -638,6 +630,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
     int paramType = -1;
     char *paramWords[2] = {0};
     int expectedParamCount = -1;
+    int entryLabelIdx = -1;
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -748,8 +741,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                            words[1 + has_label]);
                     return;
                 } else {
-                    /* printf("Debug: Label '%s' exists\n",
-                            words[1 + has_label]); */
+                    entryLabelIdx = getLabelIndex(words[1 + has_label]);
                 }
             }
             /* For extern, the label must not exist */
@@ -796,9 +788,8 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
 
     UpdateLines(words, num_of_words, has_label);
 
-    /* Execute operation .... */
+    WriteToEntryFile(entryLabelIdx);
 }
-
 
 void ParseFile() {
     FILE *file = fopen("prog.am", "r");
