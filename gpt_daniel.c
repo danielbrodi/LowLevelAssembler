@@ -642,7 +642,6 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
     }
 
     if (commandIdx >= 0) { /* If it's a command and not a instruction */
-        current_line_number += paramCount[commandIdx] + 1;
         for (operandIdx = commandOrderInWords + 1; operandIdx <=
                                                    commandOrderInWords +
                                                    paramCount[commandIdx]; operandIdx++) {
@@ -654,6 +653,7 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
                 }
             }
         }
+        current_line_number += paramCount[commandIdx] + 1;
         /* If both parameters are registers, we decrement the line count by 1 */
         if (paramCount[commandIdx] == 2 &&
             isValidParam(words[commandOrderInWords + 1],
