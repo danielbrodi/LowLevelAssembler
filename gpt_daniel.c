@@ -631,8 +631,9 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
 void ProcessLine(char *words[], int num_of_words, int has_label) {
 
     int i;
-    int commandIdx = findCommand(words[has_label]);
-    int instructionIdx = findInstruction(words[has_label]);
+    char *command = words[has_label];
+    int commandIdx = findCommand(command);
+    int instructionIdx = findInstruction(command);
     int paramTypes[2] = {0};
     int paramType = -1;
     char *paramWords[2] = {0};
@@ -644,7 +645,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
         expectedParamCount = paramCount[commandIdx];
         if (num_of_words - 1 - has_label != expectedParamCount) {
             printf("Incorrect number of parameters for command '%s'\n",
-                   words[has_label]);
+                   command);
             return;
         }
         /* Validate each parameter */
@@ -656,7 +657,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                    operandTypeIndex < 2) {
                 if (paramIndex >= 2) {
                     printf("Too many parameters for command '%s'\n",
-                           words[has_label]);
+                           command);
                     return;
                 }
                 paramTypes[paramIndex++] = OPERAND_TYPE_NONE;
@@ -664,17 +665,17 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             }
             if (expectedType == OPERAND_TYPE_NONE) {
                 printf("Too many parameters for command '%s'\n",
-                       words[has_label]);
+                       command);
                 return;
             }
             if (!isValidParam(words[i], expectedType)) {
                 printf("Invalid parameter '%s' for command '%s'\n",
-                       words[i], words[has_label]);
+                       words[i], command);
                 return;
             }
             if (paramIndex >= 2) {
                 printf("Too many parameters for command '%s'\n",
-                       words[has_label]);
+                       command);
                 return;
             }
             paramTypes[paramIndex] = findParameterType(words[i]);
@@ -683,9 +684,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             operandTypeIndex++;
         }
 
-        printf("The index command is %d\n", commandIdx);
-        printf("The first param type is %d, the second param type is %d.\n",
-               paramTypes[0], paramTypes[1]);
         printBinaryCommand(commandIdx, paramTypes[0], paramTypes[1]);
 
         int first_register_id = 0;
@@ -746,7 +744,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                    num_of_words, has_label, words[1 + has_label]);*/
             if (num_of_words - 1 - has_label != 1) {
                 printf("Incorrect number of parameters for instruction '%s'\n",
-                       words[has_label]);
+                       command);
                 return;
             }
             /* For entry, the label must exist */
@@ -768,8 +766,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                     return;
                 }
             }
-        } else {
-            /*  printf("Debug: Not an entry or extern instruction\n"); */
         }
         switch (instructionIdx) {
             case STRING_INSTRUCTION:
@@ -788,7 +784,8 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                 break;
         }
     } else {
-        /* printf("Debug: Not an instruction\n"); */
+        printf("Error: \'%s\' is not a valid command or instruction!\n",
+               command);
     }
 
     /* If there's a label, validate it */
