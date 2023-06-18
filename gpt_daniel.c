@@ -44,7 +44,10 @@ typedef struct {
     char name[MAX_LABEL_LENGTH];
     int line_number;
     int asm_line_number;
+    int isExtern;
+    int isEntry;
 } Label;
+
 
 char *commandsList[] = {
         "mov",
@@ -129,9 +132,9 @@ int paramCount[] = {
 
 typedef enum {
     DATA_INSTRUCTION,
-    EXTERN_INSTRUCTION,
+    STRING_INSTRUCTION,
     ENTRY_INSTRUCTION,
-    STRING_INSTRUCTION
+    EXTERN_INSTRUCTION
 } Instruction;
 
 #define ILLEGAL_COMMA 0
@@ -230,7 +233,6 @@ int checkLabels(char *am_file_name) {
             char new_label[MAX_LINE_LENGTH];
             strncpy(new_label, line, label_length);
             new_label[label_length] = '\0';
-
             to_lowercase(new_label);
 
             for (i = 0; i < commandsListSize; i++) {
@@ -279,16 +281,13 @@ int checkLabels(char *am_file_name) {
             /* Copy label to labels array */
             strncpy(labels[label_count].name, new_label, label_length + 1);
             labels[label_count].line_number = line_number;
+            labels[label_count].isEntry = 0;
+            labels[label_count].isExtern = 0;
             label_count++;
         }
     }
 
     rewind(file);
-
-    /* Second scan to process lines */
-    while (fgets(line, sizeof(line), file)) {
-        /* TODO: process each line based on your needs */
-    }
 
     fclose(file);
     for (i = 0; i < label_count; i++) {
@@ -352,6 +351,7 @@ int getLabelIndex(const char *str) {
     }
     return 0;
 }
+
 
 FILE *preProcess(const char *input_file, const char *output_file) {
     /* If the line starts with a macro invocation, expand it */
@@ -469,6 +469,7 @@ Boolean isLabelExists(char *label) {
     return FALSE;
 }
 
+
 int findInstruction(const char *instruction) {
     int instructionIdx;
     const char *comparisonInstruction = instruction;
@@ -491,6 +492,7 @@ int findInstruction(const char *instruction) {
     /* printf("Debug: Instruction '%s' not found\n", comparisonInstruction); */
     return -1;
 }
+
 
 int findCommand(char *command) {
     int i;
@@ -594,7 +596,12 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
     commandIdx = findCommand(command);
 
     if (has_label) {
-        labels[getLabelIndex(words[0])].asm_line_number = current_line_number;
+        for (i = 0; i < label_count; i++) {
+            if (strcmp(words[0], labels[i].name) == 0) {
+                labels[i].asm_line_number = current_line_number;
+                break;
+            }
+        }
     }
 
     if (commandIdx >= 0) { /* If it's a command and not a instruction */
@@ -630,7 +637,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
     int paramType = -1;
     char *paramWords[2] = {0};
     int expectedParamCount = -1;
-    int entryLabelIdx = -1;
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -684,7 +690,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
 
         int first_register_id = 0;
         int second_register_id = 0;
-
+        int j = 0;
         for (i = 0; i < 2; i++) {
             paramType = paramTypes[i];
             switch (paramType) {
@@ -713,7 +719,16 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                     break;
                 }
                 case LABEL:
-                    printf("?\n");
+                    for (j = 0; j < label_count; j++) {
+                        if (strcmp(paramWords[i], labels[j].name) == 0) {
+                            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
+                                   labels[j].name, labels[j].line_number,
+                                   labels[j].asm_line_number);
+                            printBinaryrPameterLabelEntry(
+                                    labels[j].asm_line_number);
+                            break;
+                        }
+                    }
                     break;
             }
         }
@@ -741,18 +756,16 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                            words[1 + has_label]);
                     return;
                 } else {
-                    entryLabelIdx = getLabelIndex(words[1 + has_label]);
+                    /* Mark the label as an entry */
+                    labels[getLabelIndex(words[has_label + 1])].isEntry = 1;
                 }
             }
-            /* For extern, the label must not exist */
-            if (instructionIdx == EXTERN_INSTRUCTION) {
+                /* For extern, the label must not exist */
+            else if (instructionIdx == EXTERN_INSTRUCTION) {
                 if (isLabelExists(words[1 + has_label])) {
                     printf("Error: extern requires label that doesn't exist but Label '%s' already exists\n",
                            words[1 + has_label]);
                     return;
-                } else {
-                    /* printf("Debug: Label '%s' does not exist\n",
-                            words[1 + has_label]); */
                 }
             }
         } else {
@@ -763,7 +776,7 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                 printBinaryString(words[has_label + 1]);
                 break;
             case DATA_INSTRUCTION:
-                for (i = 0; i < num_of_words - has_label - 1; i++) {
+                for (i = has_label + 1; i < num_of_words; i++) {
                     printBinaryDataPrameter(atoi(words[i]));
                 }
                 break;
@@ -785,193 +798,248 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             return;
         }
     }
-
-    UpdateLines(words, num_of_words, has_label);
-
-    WriteToEntryFile(entryLabelIdx);
 }
 
-void ParseFile() {
-    FILE *file = fopen("prog.am", "r");
-    char buffer[256];
-    char *input_words[256];
-    int line_number = 0;
+
+void WriteToEntryFile() {
+    int i;
+    FILE *file = fopen("prog.ent", "w");
+    if (file == NULL) {
+        printf("Error: Couldn't open the entry file\n");
+        return;
+    }
+
+    for (i = 0; i < label_count; i++) {
+        if (labels[i].isEntry) {
+            fprintf(file, "%s %d\n", labels[i].name, labels[i].asm_line_number);
+        }
+    }
+
+    fclose(file);
+}
+
+void ParseFile(char *am_file_name) {
+    FILE *file = NULL;
+    char buffer[80];
+    char *input_words[80];
+    int line_number = 1;
     State state = -1;
     int labelIdx = -1;
     int num_of_words = 0;
     int i = 0, j = 0;
     int has_label = 0; /* A flag indicating if a label exists */
     int len = -1;
-    if (file == NULL) {
-        printf("Failed to open file\n");
-        return;
-    }
-
-    while (fgets(buffer, sizeof(buffer), file)) {
-        /* Remove newline character at the end of the buffer, if exists */
-        len = strlen(buffer);
-        if (len > 0 && buffer[len - 1] == '\n') {
-            buffer[len - 1] = '\0';
+    int pass = 1;
+    for (pass = 1; pass <= 2; pass++) {
+        file = fopen(am_file_name, "r");
+        if (file == NULL) {
+            printf("Failed to open file\n");
+            return;
         }
 
-        /* Skip quotes */
-        for (i = 0, j = 0; i < len; i++) {
-            if (buffer[i] != '"') {
-                buffer[j++] = buffer[i];
-            }
-        }
-        buffer[j] = '\0';
-        num_of_words = 0;
-        state = IN_LABEL_OR_COMMAND;
-        has_label = 0; /* A flag indicating if a label exists */
-        input_words[(num_of_words)++] = buffer;
-
-        for (i = 0; buffer[i] != '\0'; i++) {
-            char c = buffer[i];
-            switch (state) {
-                case IN_LABEL_OR_COMMAND:
-                    if (isspace(c)) {
-                        buffer[i] = '\0';
-                        state = AFTER_LABEL_OR_COMMAND;
-                    } else if (c == ',') {
-                        PrintErrorMessage(1, ILLEGAL_COMMA);
-                        continue;
-                    } else if (c == ':') {
-                        has_label = 1;  /* Mark that a label is present */
-                        buffer[i] = '\0';
-                        state = AFTER_LABEL;
-                    }
-                    break;
-                case AFTER_LABEL:
-                    if (isalnum(c)) {
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_COMMAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                        continue;  /* Continue with next character */
-                    }
-                    break;
-                case AFTER_LABEL_OR_COMMAND:
-                    if (has_label && isalnum(c)) {
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_COMMAND;
-                    } else if (!has_label &&
-                               (isalnum(c) || c == '@' || c == '-' ||
-                                c == '+')) {
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_OPERAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                        continue;  /* Continue with next character */
-                    }
-                    break;
-                case IN_COMMAND:
-                    if (isspace(c)) {
-                        buffer[i] = '\0';
-                        state = AFTER_COMMAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                        continue;
-                    }
-                    break;
-                case AFTER_COMMAND:
-                    if (isalnum(c) || c == '-' || c == '+') {
-                        input_words[(num_of_words)++] = buffer + i;
-                        state = IN_OPERAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Illegal comma\n",
-                               line_number);
-                        continue;
-                    }
-                    break;
-                case IN_OPERAND:
-                    if (c == ',') {
-                        buffer[i] = '\0';
-                        state = AFTER_OPERAND_AND_WAITING;
-                    } else if (!(isalnum(c) || c == '-' || c == '+')) {
-                        state = EXPECTING_COMMA;
-                    }
-                    break;
-
-                case EXPECTING_COMMA:
-                    if (isalnum(c)) {
-                        printf("Error on line %d: Missing comma before char %c\n",
-                               line_number, c);
-                        buffer[i - 1] = '\0';
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_OPERAND;
-                    } else if (c == ',') {
-                        buffer[i] = '\0';
-                        state = AFTER_OPERAND;
-                    }
-                    break;
-
-                case AFTER_OPERAND_AND_WAITING:
-                    if (isalnum(c) || c == '-' || c == '+') {
-                        input_words[num_of_words++] = buffer + i;
-                        state = IN_OPERAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Multiple consecutive commas\n",
-                               line_number);
-                        continue;
-                    } else {
-                        state = AFTER_OPERAND;
-                    }
-                    break;
-
-                case AFTER_OPERAND:
-                    if (isalnum(c) || c == '-' || c == '+') {
-                        input_words[(num_of_words)++] = buffer + i;
-                        state = IN_OPERAND;
-                    } else if (c == ',') {
-                        printf("Error on line %d: Multiple consecutive commas\n",
-                               line_number);
-                        continue;
-                    }
-                    break;
+        while (fgets(buffer, sizeof(buffer), file)) {
+            /* Remove newline character at the end of the buffer, if exists */
+            len = strlen(buffer);
+            if (len > 0 && buffer[len - 1] == '\n') {
+                buffer[len - 1] = '\0';
             }
 
-        }
-        for (i = 0; i < num_of_words; i++) {
-            printf("For line %d the word idx %d is: \"%s\".\n", line_number,
-                   i,
-                   input_words[i]);
-        }
-        input_words[num_of_words] = NULL;
-        ProcessLine(input_words, num_of_words, has_label);
-    }
+            /* Skip quotes */
+            for (i = 0, j = 0; i < len; i++) {
+                if (buffer[i] != '"') {
+                    buffer[j++] = buffer[i];
+                }
+            }
+            buffer[j] = '\0';
+            num_of_words = 0;
+            state = IN_LABEL_OR_COMMAND;
+            has_label = 0; /* A flag indicating if a label exists */
+            input_words[(num_of_words)++] = buffer;
 
-    fclose(file);
+            for (i = 0; buffer[i] != '\0'; i++) {
+                char c = buffer[i];
+                switch (state) {
+                    case IN_LABEL_OR_COMMAND:
+                        if (isspace(c)) {
+                            buffer[i] = '\0';
+                            state = AFTER_LABEL_OR_COMMAND;
+                        } else if (c == ',') {
+                            PrintErrorMessage(1, ILLEGAL_COMMA);
+                            continue;
+                        } else if (c == ':') {
+                            has_label = 1;  /* Mark that a label is present */
+                            buffer[i] = '\0';
+                            state = AFTER_LABEL;
+                        }
+                        break;
+                    case AFTER_LABEL:
+                        if (isalnum(c)) {
+                            input_words[num_of_words++] = buffer + i;
+                            state = IN_COMMAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Illegal comma\n",
+                                   line_number);
+                            continue;  /* Continue with next character */
+                        }
+                        break;
+                    case AFTER_LABEL_OR_COMMAND:
+                        if (has_label && isalnum(c)) {
+                            input_words[num_of_words++] = buffer + i;
+                            state = IN_COMMAND;
+                        } else if (!has_label &&
+                                   (isalnum(c) || c == '@' || c == '-' ||
+                                    c == '+')) {
+                            input_words[num_of_words++] = buffer + i;
+                            state = IN_OPERAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Illegal comma\n",
+                                   line_number);
+                            continue;  /* Continue with next character */
+                        }
+                        break;
+                    case IN_COMMAND:
+                        if (isspace(c)) {
+                            buffer[i] = '\0';
+                            state = AFTER_COMMAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Illegal comma\n",
+                                   line_number);
+                            continue;
+                        }
+                        break;
+                    case AFTER_COMMAND:
+                        if (isalnum(c) || c == '-' || c == '+') {
+                            input_words[(num_of_words)++] = buffer + i;
+                            state = IN_OPERAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Illegal comma\n",
+                                   line_number);
+                            continue;
+                        }
+                        break;
+                    case IN_OPERAND:
+                        if (c == ',') {
+                            buffer[i] = '\0';
+                            state = AFTER_OPERAND_AND_WAITING;
+                        } else if (!(isalnum(c) || c == '-' || c == '+')) {
+                            state = EXPECTING_COMMA;
+                        }
+                        break;
+
+                    case EXPECTING_COMMA:
+                        if (isalnum(c)) {
+                            printf("Error on line %d: Missing comma before char %c\n",
+                                   line_number, c);
+                            buffer[i - 1] = '\0';
+                            input_words[num_of_words++] = buffer + i;
+                            state = IN_OPERAND;
+                        } else if (c == ',') {
+                            buffer[i] = '\0';
+                            state = AFTER_OPERAND;
+                        }
+                        break;
+
+                    case AFTER_OPERAND_AND_WAITING:
+                        if (isalnum(c) || c == '-' || c == '+') {
+                            input_words[num_of_words++] = buffer + i;
+                            state = IN_OPERAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Multiple consecutive commas\n",
+                                   line_number);
+                            continue;
+                        } else {
+                            state = AFTER_OPERAND;
+                        }
+                        break;
+
+                    case AFTER_OPERAND:
+                        if (isalnum(c) || c == '-' || c == '+') {
+                            input_words[(num_of_words)++] = buffer + i;
+                            state = IN_OPERAND;
+                        } else if (c == ',') {
+                            printf("Error on line %d: Multiple consecutive commas\n",
+                                   line_number);
+                            continue;
+                        }
+                        break;
+                }
+
+            }
+            input_words[num_of_words] = NULL;
+            if (pass == 1) {
+                for (i = 0; i < num_of_words; i++) {
+                    printf("For line %d the word idx %d is: \"%s\".\n",
+                           line_number,
+                           i,
+                           input_words[i]);
+                }
+                ++line_number;
+                UpdateLines(input_words, num_of_words, has_label);
+            }
+            if (pass == 2) {
+                ProcessLine(input_words, num_of_words, has_label);
+            }
+        }
+        fclose(file);
+    }
 }
 
-int main() {
-    int status;
-    char user_input[MAX_LINE_LENGTH] = {0};
-    int num_of_words = 0;
-    char *user_command_tokens[MAX_LINE_LENGTH] = {0};
+#include <string.h> /* For strlen */
+
+int main(int argc, char *argv[]) {
+    int i = 0, j = 0;
+    FILE *file = NULL;
     FILE *fp = NULL;
-    int i = 0;
 
-    preProcess(VALID_FILE_NAME, "asdas.am");
-    fp = fopen(OUTPUT_FILE_NAME, "r");
-    if (fp == NULL) {
-        printf("Failed to open file in `main`\n");
-        return FAILURE;
+    if (argc < 2) {
+        printf("Please provide file names as command-line arguments.\n");
+        return 1;  /* indicating an error */
+    }
+    for (i = 1; i < argc; i++) {
+        /* Append extensions to the current file name */
+        size_t argLength = strlen(argv[i]);
+        char *file_name_as = malloc(argLength + 4); /* 4 for ".as\0" */
+        char *file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
+        char *file_name_ent = malloc(argLength + 5); /* 5 for ".ent\0" */
+
+        strcpy(file_name_as, argv[i]);
+        strcat(file_name_as, ".as");
+
+        strcpy(file_name_am, argv[i]);
+        strcat(file_name_am, ".am");
+
+        strcpy(file_name_ent, argv[i]);
+        strcat(file_name_ent, ".ent");
+
+        file = fopen(file_name_as, "r");
+        if (file == NULL) {
+            printf("Failed to open the file: %s\n", file_name_as);
+            free(file_name_as);
+            free(file_name_am);
+            free(file_name_ent);
+            continue;  /* skip to the next file */
+        }
+
+        preProcess(file_name_as, file_name_am);
+
+        checkLabels(file_name_am);
+        ParseFile(file_name_am);
+
+        WriteToEntryFile(file_name_ent);
+
+        for (j = 0; j < label_count; j++) {
+            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
+                   labels[j].name, labels[j].line_number,
+                   labels[j].asm_line_number);
+        }
+
+        fclose(file);  /* Close the file when done */
+        free(file_name_as);
+        free(file_name_am);
+        free(file_name_ent);
     }
 
-    checkLabels(OUTPUT_FILE_NAME);
-
-    ParseFile();
-    for (i = 0; i < label_count; i++) {
-        printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
-               labels[i].name, labels[i].line_number,
-               labels[i].asm_line_number);
-    }
-    fclose(fp);
-    return 0;
+    return 0;  /* indicating success */
 }
 
 void PrintErrorMessage(int condition, int errorMessageId) {
@@ -979,3 +1047,4 @@ void PrintErrorMessage(int condition, int errorMessageId) {
         fprintf(stdout, "Error: %s\n", ErrorMessages[errorMessageId]);
     }
 }
+

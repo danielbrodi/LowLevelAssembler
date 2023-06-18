@@ -101,4 +101,5 @@ void printBinaryDataPrameter(int number) {
     }
     /* Print the next 10 bits for the type of the integer*/
     printBinary(number, 12);
+    printf("\n");
 }
