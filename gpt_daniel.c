@@ -89,7 +89,9 @@ int commandsListSize = sizeof(commandsList) / sizeof(char *);
 int instructionsListSize = sizeof(instructionsList) / sizeof(char *);
 int registersListSize = sizeof(registersList) / sizeof(char *);
 Label labels[MAX_LINES];
+Label externalLabels[MAX_LINES];
 int label_count = 0;
+int externalLabel_count = 0;
 
 OperandType operandTypes[][2] = {
         {OPERAND_TYPE_ALL,   OPERAND_TYPE_LABEL_OR_REGISTER}, /* mov */
@@ -618,10 +620,22 @@ int findParameterType(char *operand) {
     }
 }
 
+void addExternalLabel(int labelIdx, int lineNumber) {
+
+    /* Add the label index to the next position in the externalLabels array */
+    externalLabels[externalLabel_count] = labels[labelIdx];
+    /* Add the line number to the lineNumber field */
+    externalLabels[externalLabel_count].asm_line_number = lineNumber;
+    /* Increment the counter for the next call */
+    externalLabel_count++;
+}
+
+
 void UpdateLines(char *words[], int num_of_words, int has_label) {
     static int current_line_number = 100;
     int i, commandIdx, commandOrderInWords, operandIdx;
     char *command;
+    int labelIdx;
 
     if (has_label) {
         commandOrderInWords = 1;
@@ -641,15 +655,14 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
         }
     }
 
-    if (commandIdx >= 0) { /* If it's a command and not a instruction */
+    if (commandIdx != -1) { /* If it's a command and not an instruction */
         for (operandIdx = commandOrderInWords + 1; operandIdx <=
                                                    commandOrderInWords +
                                                    paramCount[commandIdx]; operandIdx++) {
             if (isLabel(words[operandIdx])) {
-                if (labels[getLabelIndex(words[operandIdx])].isExtern) {
-                    labels[getLabelIndex(
-                            words[operandIdx])].asm_line_number = current_line_number;
-                    break;
+                labelIdx = getLabelIndex(words[operandIdx]);
+                if (labels[labelIdx].isExtern) {
+                    addExternalLabel(labelIdx, current_line_number + 1);
                 }
             }
         }
@@ -662,7 +675,7 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
                          OPERAND_TYPE_REGISTER)) {
             current_line_number--;
         }
-    } else { /* It's a instruction */
+    } else { /* It's an instruction */
         if (strcmp(command, "string") == 0) {
             /* Including the null character at the end of the string */
             current_line_number += strlen(words[commandOrderInWords + 1]) + 1;
@@ -870,10 +883,12 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename) {
         if (labels[i].isEntry) {
             fprintf(entry_fp, "%s %d\n", labels[i].name,
                     labels[i].asm_line_number);
-        } else if (labels[i].isExtern) {
-            fprintf(extern_fp, "%s %d\n", labels[i].name,
-                    labels[i].asm_line_number);
         }
+    }
+
+    for (i = 0; i < externalLabel_count; i++) {
+        fprintf(extern_fp, "%s %d\n", externalLabels[i].name,
+                externalLabels[i].asm_line_number);
     }
 
     fclose(entry_fp);
