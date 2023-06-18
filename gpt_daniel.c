@@ -203,6 +203,10 @@ int countParams(int num_of_words) {
     return count;
 }
 
+int startsWith(const char *str, const char *prefix) {
+    return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
 int checkLabels(char *am_file_name) {
     int i;
     FILE *file = fopen(am_file_name, "r");
@@ -222,7 +226,7 @@ int checkLabels(char *am_file_name) {
         char *label_end = strchr(line, ':');
         if (label_end) {
             /* Extract label */
-            int label_length = label_end - line;
+            int label_length = (int) (label_end - line);
             /* Check if label length is less than 31 */
             if (label_length >= MAX_LABEL_LENGTH) {
                 printf("Label length exceeds limit at line %d\n", line_number);
@@ -230,7 +234,7 @@ int checkLabels(char *am_file_name) {
             }
 
             /* Check if label is a saved word */
-            char new_label[MAX_LINE_LENGTH];
+            char new_label[MAX_LABEL_LENGTH];
             strncpy(new_label, line, label_length);
             new_label[label_length] = '\0';
             to_lowercase(new_label);
@@ -284,16 +288,50 @@ int checkLabels(char *am_file_name) {
             labels[label_count].isEntry = 0;
             labels[label_count].isExtern = 0;
             label_count++;
+        } else {
+            /* Check if line starts with an 'extern' instruction */
+            if (startsWith(line, ".extern")) {
+                /* Extract label */
+                char *label_start = line + strlen(".extern") +
+                                    1; /* +1 to skip the space after '.extern' */
+                char *label_end = strpbrk(label_start,
+                                          " \t\n"); /* find the end of the label */
+                if (!label_end)
+                    label_end = label_start +
+                                strlen(label_start); /* end of string if no whitespace found */
+
+                /* Check and add the label as before, but mark it as extern */
+                int label_length = (int) (label_end - label_start);
+                char new_label[MAX_LABEL_LENGTH];
+                strncpy(new_label, label_start, label_length);
+                new_label[label_length] = '\0';
+
+                /* Check for duplicate labels */
+                for (i = 0; i < label_count; i++) {
+                    if (strcmp(new_label, labels[i].name) == 0) {
+                        printf("Duplicate label %s at line %d\n", new_label,
+                               line_number);
+                        return -1;
+                    }
+                }
+
+                /* Copy label to labels array */
+                strncpy(labels[label_count].name, new_label, label_length + 1);
+                labels[label_count].line_number = -1; /* No line number for extern labels */
+                labels[label_count].isEntry = 0;
+                labels[label_count].isExtern = 1;
+                label_count++;
+            }
         }
     }
 
-    rewind(file);
-
     fclose(file);
+
     for (i = 0; i < label_count; i++) {
         printf("this is label %d: %s in line: %d\n", i, labels[i].name,
                labels[i].line_number);
     }
+
     return 0;
 }
 
@@ -322,7 +360,6 @@ int getRegisterId(const char *str) {
 
 int isRegister(const char *str) {
     int i;
-    printf("CHecknig register %s!\n", str);
     for (i = 0; i < registersListSize; i++) {
         if (strcmp(str, registersList[i]) ==
             0) {
@@ -569,7 +606,7 @@ int isValidParam(char *param, OperandType expectedType) {
 
 int findParameterType(char *operand) {
     if (isNumber(operand)) {
-        printf("Checknig if %s is a number and the answer is %d.\n", operand,
+        printf("Checking if %s is a number and the answer is %d.\n", operand,
                isNumber(operand));
         return NUMBER;
     } else if (isLabel(operand)) {
@@ -583,7 +620,7 @@ int findParameterType(char *operand) {
 
 void UpdateLines(char *words[], int num_of_words, int has_label) {
     static int current_line_number = 100;
-    int i, commandIdx, commandOrderInWords;
+    int i, commandIdx, commandOrderInWords, operandIdx;
     char *command;
 
     if (has_label) {
@@ -606,6 +643,17 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
 
     if (commandIdx >= 0) { /* If it's a command and not a instruction */
         current_line_number += paramCount[commandIdx] + 1;
+        for (operandIdx = commandOrderInWords + 1; operandIdx <=
+                                                   commandOrderInWords +
+                                                   paramCount[commandIdx]; operandIdx++) {
+            if (isLabel(words[operandIdx])) {
+                if (labels[getLabelIndex(words[operandIdx])].isExtern) {
+                    labels[getLabelIndex(
+                            words[operandIdx])].asm_line_number = current_line_number;
+                    break;
+                }
+            }
+        }
         /* If both parameters are registers, we decrement the line count by 1 */
         if (paramCount[commandIdx] == 2 &&
             isValidParam(words[commandOrderInWords + 1],
@@ -764,6 +812,9 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                     printf("Error: extern requires label that doesn't exist but Label '%s' already exists\n",
                            words[1 + has_label]);
                     return;
+                } else {
+                    /* Mark the label as an entry */
+                    labels[getLabelIndex(words[has_label + 1])].isExtern = 1;
                 }
             }
         }
@@ -797,22 +848,36 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
     }
 }
 
+void WriteLabelsToFile(const char *ent_filename, const char *ext_filename) {
+    int i = 0;
+    FILE *entry_fp = fopen(ent_filename, "w");
+    FILE *extern_fp = fopen(ext_filename, "w");
 
-void WriteToEntryFile() {
-    int i;
-    FILE *file = fopen("prog.ent", "w");
-    if (file == NULL) {
-        printf("Error: Couldn't open the entry file\n");
+    if (entry_fp == NULL) {
+        printf("Unable to open entry file (%s) for writing.\n", ent_filename);
+        return;
+    }
+
+    if (extern_fp == NULL) {
+        printf("Unable to open extern file (%s) for writing.\n",
+               ext_filename);
+        /* Close already opened entry file */
+        fclose(entry_fp);
         return;
     }
 
     for (i = 0; i < label_count; i++) {
         if (labels[i].isEntry) {
-            fprintf(file, "%s %d\n", labels[i].name, labels[i].asm_line_number);
+            fprintf(entry_fp, "%s %d\n", labels[i].name,
+                    labels[i].asm_line_number);
+        } else if (labels[i].isExtern) {
+            fprintf(extern_fp, "%s %d\n", labels[i].name,
+                    labels[i].asm_line_number);
         }
     }
 
-    fclose(file);
+    fclose(entry_fp);
+    fclose(extern_fp);
 }
 
 void ParseFile(char *am_file_name) {
@@ -998,15 +1063,13 @@ int main(int argc, char *argv[]) {
         char *file_name_as = malloc(argLength + 4); /* 4 for ".as\0" */
         char *file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
         char *file_name_ent = malloc(argLength + 5); /* 5 for ".ent\0" */
+        char *file_name_ext = malloc(argLength + 5); /* 5 for ".ext\0" */
 
-        strcpy(file_name_as, argv[i]);
-        strcat(file_name_as, ".as");
+        sprintf(file_name_as, "%s.as", argv[i]);
+        sprintf(file_name_am, "%s.am", argv[i]);
+        sprintf(file_name_ent, "%s.ent", argv[i]);
+        sprintf(file_name_ext, "%s.ext", argv[i]);
 
-        strcpy(file_name_am, argv[i]);
-        strcat(file_name_am, ".am");
-
-        strcpy(file_name_ent, argv[i]);
-        strcat(file_name_ent, ".ent");
 
         file = fopen(file_name_as, "r");
         if (file == NULL) {
@@ -1018,11 +1081,9 @@ int main(int argc, char *argv[]) {
         }
 
         preProcess(file_name_as, file_name_am);
-
         checkLabels(file_name_am);
         ParseFile(file_name_am);
-
-        WriteToEntryFile(file_name_ent);
+        WriteLabelsToFile(file_name_ent, file_name_ext);
 
         for (j = 0; j < label_count; j++) {
             printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
