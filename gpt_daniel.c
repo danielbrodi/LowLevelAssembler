@@ -499,9 +499,9 @@ int GetInput(char buffer[], FILE *fp) {
 }
 
 Boolean isLabelExists(char *label) {
-    int labelIdx = 0;
-    for (; labelIdx < label_count; labelIdx++) {
-        if (strcmp(label, labels[labelIdx].name) == 0) {
+    int labelIdx = -1;
+    if (isLabel(label)) {
+        if (!labels[getLabelIndex(label)].isExtern) {
             return TRUE;
         }
     }
@@ -608,8 +608,10 @@ int isValidParam(char *param, OperandType expectedType) {
 
 int findParameterType(char *operand) {
     if (isNumber(operand)) {
+        /*
         printf("Checking if %s is a number and the answer is %d.\n", operand,
                isNumber(operand));
+               */
         return NUMBER;
     } else if (isLabel(operand)) {
         return LABEL;
@@ -662,16 +664,16 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
             if (isLabel(words[operandIdx])) {
                 labelIdx = getLabelIndex(words[operandIdx]);
                 if (labels[labelIdx].isExtern) {
-                    if (has_label){
-                        if (operandIdx == 2){
+                    if (has_label) {
+                        if (operandIdx == 2) {
                             addExternalLabel(labelIdx, current_line_number + 1);
-                        } else{
+                        } else {
                             addExternalLabel(labelIdx, current_line_number + 2);
                         }
-                    } else{
-                        if (operandIdx == 1){
+                    } else {
+                        if (operandIdx == 1) {
                             addExternalLabel(labelIdx, current_line_number + 1);
-                        } else{
+                        } else {
                             addExternalLabel(labelIdx, current_line_number + 2);
                         }
                     }
@@ -779,33 +781,32 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                             }
                             break;
                         case 1:
-                            if (paramTypes[i - 1] != REGISTER) {
-                                sscanf(paramWords[i - 1], "%*[^0-9]%d",
-                                       &first_register_id);
-                            }
+                            sscanf(paramWords[i - 1], "%*[^0-9]%d",
+                                   &second_register_id);
                             break;
                         default:
                             break;
+                    }
+                    if (first_register_id != 0 || second_register_id != 0) {
+                        printBinaryPrameterRegister(first_register_id,
+                                                    second_register_id);
                     }
                     break;
                 }
                 case LABEL:
                     for (j = 0; j < label_count; j++) {
                         if (strcmp(paramWords[i], labels[j].name) == 0) {
-                            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
-                                   labels[j].name, labels[j].line_number,
-                                   labels[j].asm_line_number);
-                            printBinaryrPameterLabelEntry(
-                                    labels[j].asm_line_number);
-                            break;
+                            if (labels[j].isEntry == 1) {
+                                printBinaryrPameterLabelEntry(
+                                        labels[j].asm_line_number);
+                            } else if (labels[j].isExtern == 1) {
+                                printBinaryrPameterLabelExtern();
+
+                            }
                         }
                     }
                     break;
             }
-        }
-        if (first_register_id != 0 || second_register_id != 0) {
-            printBinaryPrameterRegister(first_register_id,
-                                        second_register_id);
         }
     } else if (instructionIdx != -1) {
         /* It's an instruction */
@@ -852,12 +853,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                     printBinaryDataPrameter(atoi(words[i]));
                 }
                 break;
-            case EXTERN_INSTRUCTION:
-                printBinaryrPameterLabelExtern();
-                break;
-            case ENTRY_INSTRUCTION:
-                printf("?\n");
-                break;
         }
     } else {
         printf("Error: \'%s\' is not a valid command or instruction!\n",
@@ -875,37 +870,49 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
 
 void WriteLabelsToFile(const char *ent_filename, const char *ext_filename) {
     int i = 0;
-    FILE *entry_fp = fopen(ent_filename, "w");
-    FILE *extern_fp = fopen(ext_filename, "w");
+    FILE *entry_fp = NULL;
+    FILE *extern_fp = NULL;
 
-    if (entry_fp == NULL) {
-        printf("Unable to open entry file (%s) for writing.\n", ent_filename);
-        return;
-    }
-
-    if (extern_fp == NULL) {
-        printf("Unable to open extern file (%s) for writing.\n",
-               ext_filename);
-        /* Close already opened entry file */
-        fclose(entry_fp);
-        return;
+    for (i = 0; i < externalLabel_count; i++) {
+        if (extern_fp == NULL) {
+            extern_fp = fopen(ext_filename, "w");
+            if (extern_fp == NULL) {
+                printf("Unable to open external file (%s) for writing.\n",
+                       ext_filename);
+                return;
+            }
+        }
+        fprintf(extern_fp, "%s %d\n", externalLabels[i].name,
+                externalLabels[i].asm_line_number);
     }
 
     for (i = 0; i < label_count; i++) {
         if (labels[i].isEntry) {
+            if (entry_fp == NULL) {
+                entry_fp = fopen(ent_filename, "w");
+                if (entry_fp == NULL) {
+                    printf("Unable to open entry file (%s) for writing.\n",
+                           ent_filename);
+                    /* Close already opened extern file */
+                    if (extern_fp != NULL) {
+                        fclose(extern_fp);
+                    }
+                    return;
+                }
+            }
             fprintf(entry_fp, "%s %d\n", labels[i].name,
                     labels[i].asm_line_number);
         }
     }
 
-    for (i = 0; i < externalLabel_count; i++) {
-        fprintf(extern_fp, "%s %d\n", externalLabels[i].name,
-                externalLabels[i].asm_line_number);
+    if (entry_fp != NULL) {
+        fclose(entry_fp);
     }
-
-    fclose(entry_fp);
-    fclose(extern_fp);
+    if (extern_fp != NULL) {
+        fclose(extern_fp);
+    }
 }
+
 
 void ParseFile(char *am_file_name) {
     FILE *file = NULL;
