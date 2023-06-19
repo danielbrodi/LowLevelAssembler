@@ -662,7 +662,19 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
             if (isLabel(words[operandIdx])) {
                 labelIdx = getLabelIndex(words[operandIdx]);
                 if (labels[labelIdx].isExtern) {
-                    addExternalLabel(labelIdx, current_line_number + 1);
+                    if (has_label){
+                        if (operandIdx == 2){
+                            addExternalLabel(labelIdx, current_line_number + 1);
+                        } else{
+                            addExternalLabel(labelIdx, current_line_number + 2);
+                        }
+                    } else{
+                        if (operandIdx == 1){
+                            addExternalLabel(labelIdx, current_line_number + 1);
+                        } else{
+                            addExternalLabel(labelIdx, current_line_number + 2);
+                        }
+                    }
                 }
             }
         }
