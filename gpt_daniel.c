@@ -268,12 +268,18 @@ int checkLabels(char *am_file_name) {
                 }
             }
 
-            /* Check if label is at the start of line */
+            /* Check if label contains spaces */
             for (i = 0; i < label_length; i++) {
                 if (isspace(line[i])) {
                     printf("Invalid label format at line %d\n", line_number);
                     return -1;
                 }
+            }
+
+            /* Check if the first character is a letter */
+            if (!isalpha(new_label[0])) {
+                printf("Invalid label at line %d: Label must start with a letter!\n", line_number);
+                return -1;
             }
 
             /* Check for duplicate labels */

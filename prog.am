@@ -1,1 +1,1 @@
-HELLO: , prn  -5
+4h: sub @r1, @r3
