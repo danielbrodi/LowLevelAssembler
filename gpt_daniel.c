@@ -370,11 +370,16 @@ int getRegisterId(const char *str) {
 }
 
 int isRegister(const char *str) {
+    const char *operand = NULL;
     int i;
-    for (i = 0; i < registersListSize; i++) {
-        if (strcmp(str, registersList[i]) ==
-            0) {
-            return 1;
+    if (str != NULL) {
+        if (str[0] == '@') {
+            operand = str + 1;
+            for (i = 0; i < registersListSize; i++) {
+                if (strcmp(operand, registersList[i]) == 0) {
+                    return 1;
+                }
+            }
         }
     }
     return 0;
@@ -590,13 +595,6 @@ int isValidLabel(const char *param) {
     return 0;
 }
 
-int isDirectRegister(char *operand) {
-    if (operand[0] == '@') {
-        return isRegister(operand + 1);
-    }
-    return 0;
-}
-
 int isValidParam(char *param, OperandType expectedType) {
     switch (expectedType) {
         case OPERAND_TYPE_NONE:
@@ -604,15 +602,13 @@ int isValidParam(char *param, OperandType expectedType) {
         case OPERAND_TYPE_LABEL:
             return isLabel(param);
         case OPERAND_TYPE_REGISTER:
-            return isRegister(param) || isDirectRegister(param);
+            return isRegister(param);
         case OPERAND_TYPE_NUMBER:
             return isNumber(param);
         case OPERAND_TYPE_LABEL_OR_REGISTER:
-            return isLabel(param) || isRegister(param) ||
-                   isDirectRegister(param);
+            return isLabel(param) || isRegister(param);
         case OPERAND_TYPE_ALL:
-            return isLabel(param) || isRegister(param) || isNumber(param) ||
-                   isDirectRegister(param);
+            return isLabel(param) || isRegister(param) || isNumber(param);
         default:
             return 0;
     }
@@ -627,7 +623,7 @@ int findParameterType(char *operand) {
         return NUMBER;
     } else if (isLabel(operand)) {
         return LABEL;
-    } else if (isRegister(operand) || isDirectRegister(operand)) {
+    } else if (isRegister(operand)) {
         return REGISTER;
     } else {
         return OPERAND_TYPE_NONE; /* not a valid type */
@@ -728,8 +724,8 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
     int labelIdx = -1;
     char *paramWords[2] = {0};
     int expectedParamCount = -1;
-    int first_register_id = 0;
-    int second_register_id = 0;
+    int first_register_id = -1;
+    int second_register_id = -1;
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -784,32 +780,20 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
                     printBinaryPrameterInteger(atoi(paramWords[i]), bin_fp);
                     break;
                 case REGISTER:
-                    switch (i) {
-                        case 0:
-                            sscanf(paramWords[i], "%*[^0-9]%d",
-                                   &first_register_id);
-                            if (paramTypes[i + 1] == REGISTER) {
-                                sscanf(paramWords[i + 1], "%*[^0-9]%d",
-                                       &second_register_id);
-                                printBinaryPrameterRegister(first_register_id,
-                                                            second_register_id,
-                                                            bin_fp);
-                            }
-                            break;
-                        case 1:
-                            if (paramTypes[i - 1] != REGISTER) {
-                                sscanf(paramWords[i - 1], "%*[^0-9]%d",
-                                       &first_register_id);
-                            }
-                            break;
-                    }
-                    if ((first_register_id != 0 ||
-                         second_register_id != 0) &&
-                        !(first_register_id != 0 &&
-                          second_register_id != 0)) {
-                        printBinaryPrameterRegister(first_register_id,
-                                                    second_register_id,
-                                                    bin_fp);
+                    /* When the command has an implicit first parameter (only one operand),
+                       we treat the register as the second operand (target operand. */
+                    if (paramCount[commandIdx] == 1 && i == 0) {
+                        sscanf(paramWords[i], "%*[^0-9]%d",
+                               &second_register_id);
+                        /* If the current and next parameter are both registers, we parse both registers. */
+                    } else if (paramTypes[i + 1] == REGISTER) {
+                        sscanf(paramWords[i], "%*[^0-9]%d", &first_register_id);
+                        sscanf(paramWords[i + 1], "%*[^0-9]%d",
+                               &second_register_id);
+                        /* If the previous parameter is not a register, we parse the current register as the second operand. */
+                    } else if (paramTypes[i - 1] != REGISTER) {
+                        sscanf(paramWords[i], "%*[^0-9]%d",
+                               &second_register_id);
                     }
                     break;
                 case LABEL:
@@ -826,6 +810,19 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
                                paramWords[i]);
                     }
                     break;
+            }
+            if (first_register_id != -1 || second_register_id != -1) {
+                /* If either first_register_id or second_register_id is not -1 (default),
+                   we print the binary parameters. If one of them is -1 (default),
+                   we substitute it with 0 for the function call. */
+                printBinaryPrameterRegister(
+                        first_register_id == -1 ? 0 : first_register_id,
+                        second_register_id == -1 ? 0 : second_register_id,
+                        bin_fp);
+                /* We reset the first_register_id and second_register_id to -1
+                   for the next iteration. */
+                first_register_id = -1;
+                second_register_id = -1;
             }
         }
     } else if (instructionIdx != -1) {
@@ -1028,7 +1025,7 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                         }
                         break;
                     case AFTER_COMMAND:
-                        if (isalnum(c) || c == '-' || c == '+') {
+                        if (isalnum(c) || c == '-' || c == '+' || c == '@') {
                             input_words[(num_of_words)++] = buffer + i;
                             state = IN_OPERAND;
                         } else if (c == ',') {
@@ -1043,7 +1040,8 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                                 buffer[i] = '\0';
                             }
                             state = AFTER_OPERAND_AND_WAITING;
-                        } else if (!(isalnum(c) || c == '-' || c == '+')) {
+                        } else if (!(isalnum(c) || c == '-' || c == '+' ||
+                                     c == '@')) {
                             state = EXPECTING_COMMA;
                         }
                         break;
@@ -1066,7 +1064,7 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
 
 
                     case AFTER_OPERAND_AND_WAITING:
-                        if (isalnum(c) || c == '-' || c == '+') {
+                        if (isalnum(c) || c == '-' || c == '+' || c == '@') {
                             input_words[num_of_words++] = buffer + i;
                             state = IN_OPERAND;
                         } else if (c == ',') {

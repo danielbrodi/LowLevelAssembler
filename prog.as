@@ -1,1 +1,1 @@
-MAIN: sub @r1, @r3
+MAIN: inc r5
