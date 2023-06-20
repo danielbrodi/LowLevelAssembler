@@ -1027,38 +1027,46 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                         break;
                     case IN_OPERAND:
                         if (c == ',') {
-                            buffer[i] = '\0';
+                            if (!isspace(buffer[i - 1])) {
+                                buffer[i] = '\0';
+                            }
                             state = AFTER_OPERAND_AND_WAITING;
                         } else if (!(isalnum(c) || c == '-' || c == '+')) {
                             state = EXPECTING_COMMA;
                         }
                         break;
 
+
+
                     case EXPECTING_COMMA:
                         if (isalnum(c)) {
-                            printf("Error on line %d: Missing comma before char %c\n",
-                                   line_number, c);
+                            printf("Error on line %d: Missing comma before char %c\n", line_number, c);
                             buffer[i - 1] = '\0';
                             input_words[num_of_words++] = buffer + i;
                             state = IN_OPERAND;
                         } else if (c == ',') {
                             buffer[i] = '\0';
                             state = AFTER_OPERAND;
+                        } else if (isspace(c)) {
+                            continue;  /* Ignore spaces while expecting a comma */
                         }
                         break;
+
 
                     case AFTER_OPERAND_AND_WAITING:
                         if (isalnum(c) || c == '-' || c == '+') {
                             input_words[num_of_words++] = buffer + i;
                             state = IN_OPERAND;
                         } else if (c == ',') {
-                            printf("Error on line %d: Multiple consecutive commas\n",
-                                   line_number);
+                            printf("Error on line %d: Multiple consecutive commas\n", line_number);
+                            continue;
+                        } else if (isspace(c)) {
                             continue;
                         } else {
                             state = AFTER_OPERAND;
                         }
                         break;
+
 
                     case AFTER_OPERAND:
                         if (isalnum(c) || c == '-' || c == '+') {
@@ -1072,6 +1080,15 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                         break;
                 }
 
+            }
+            /* Trim trailing spaces from the operand */
+            int k;
+            for (k = num_of_words - 1; k >= 0; k--) {
+                int word_len = strlen(input_words[k]);
+                while (word_len > 0 && isspace(input_words[k][word_len - 1])) {
+                    input_words[k][word_len - 1] = '\0';
+                    word_len--;
+                }
             }
             input_words[num_of_words] = NULL;
             if (pass == 1) {
