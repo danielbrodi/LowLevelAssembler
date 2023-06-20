@@ -935,7 +935,8 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
     int num_of_words = 0;
     int i = 0, j = 0;
     int has_label = 0; /* A flag indicating if a label exists */
-    int len = -1;
+    size_t len = -1;
+    char last_non_space = '\0';
     int pass = 1;
     FILE *bin_fp = fopen(bin_file_name, "w");
     for (pass = 1; pass <= 2; pass++) {
@@ -966,6 +967,9 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
 
             for (i = 0; buffer[i] != '\0'; i++) {
                 char c = buffer[i];
+                if (!isspace(c)) {
+                    last_non_space = c;
+                }
                 switch (state) {
                     case IN_LABEL_OR_COMMAND:
                         if (isspace(c)) {
@@ -1067,7 +1071,6 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                         }
                         break;
 
-
                     case AFTER_OPERAND:
                         if (isalnum(c) || c == '-' || c == '+') {
                             input_words[(num_of_words)++] = buffer + i;
@@ -1082,13 +1085,15 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
 
             }
             /* Trim trailing spaces from the operand */
-            int k;
-            for (k = num_of_words - 1; k >= 0; k--) {
-                int word_len = strlen(input_words[k]);
-                while (word_len > 0 && isspace(input_words[k][word_len - 1])) {
-                    input_words[k][word_len - 1] = '\0';
-                    word_len--;
+            for (i = num_of_words - 1; i>= 0; i--) {
+                len = strlen(input_words[i]);
+                while (len > 0 && isspace(input_words[i][len - 1])) {
+                    input_words[i][len - 1] = '\0';
+                    len--;
                 }
+            }
+            if (last_non_space == ',') {
+                printf("Error on line %d: Extra comma at the end of the line\n", line_number);
             }
             input_words[num_of_words] = NULL;
             if (pass == 1) {
