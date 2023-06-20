@@ -9,21 +9,20 @@
 
 #include <stdio.h>
 
-void printBinary(int value, int numBits);
+void printBinary(int value, int numBits, FILE *outputFile);
 
-void
-printBinaryCommand(int commandNum, int firstParamType, int secondParamType);
+void printBinaryCommand(int commandNum, int firstParamType, int secondParamType, FILE *outputFile);
 
-void printBinaryPrameterInteger(int number);
+void printBinaryPrameterInteger(int number, FILE *outputFile);
 
-void printBinaryPrameterRegister(int sourceOperand, int targetOperand);
+void printBinaryPrameterRegister(int sourceOperand, int targetOperand, FILE *outputFile);
 
-void printBinaryrPameterLabelEntry(int labelCode);
+void printBinaryrPameterLabelEntry(int labelCode, FILE *outputFile);
 
-void printBinaryrPameterLabelExtern();
+void printBinaryrPameterLabelExtern(FILE *outputFile);
 
-void printBinaryString(const char *str);
+void printBinaryString(const char *str, FILE *outputFile);
 
-void printBinaryDataPrameter(int number);
+void printBinaryDataPrameter(int number, FILE *outputFile);
 
 #endif

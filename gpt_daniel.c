@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
 
 #include "macro.h"
 #include "utils.h"
 #include "binary.h"
+#include "create_ob.h"
 
 #define DONE 2
 #define MAX_LINE_LENGTH 80
@@ -210,7 +210,13 @@ int startsWith(const char *str, const char *prefix) {
 }
 
 int checkLabels(char *am_file_name) {
-    int i;
+    int i = 0;
+    char line[MAX_LINE_LENGTH] = {0};
+    int line_number = 0;
+    char new_label[MAX_LABEL_LENGTH] = {0};
+    char *label_end = NULL;
+    int label_length = -1;
+
     FILE *file = fopen(am_file_name, "r");
 
     if (!file) {
@@ -218,17 +224,15 @@ int checkLabels(char *am_file_name) {
         return -1;
     }
 
-    char line[MAX_LINE_LENGTH];
-    int line_number = 0;
     /* First scan to validate and collect labels */
     while (fgets(line, sizeof(line), file)) {
         line_number++;
 
         /* Check if line starts with a label */
-        char *label_end = strchr(line, ':');
+        label_end = strchr(line, ':');
         if (label_end) {
             /* Extract label */
-            int label_length = (int) (label_end - line);
+            label_length = (int) (label_end - line);
             /* Check if label length is less than 31 */
             if (label_length >= MAX_LABEL_LENGTH) {
                 printf("Label length exceeds limit at line %d\n", line_number);
@@ -236,7 +240,6 @@ int checkLabels(char *am_file_name) {
             }
 
             /* Check if label is a saved word */
-            char new_label[MAX_LABEL_LENGTH];
             strncpy(new_label, line, label_length);
             new_label[label_length] = '\0';
             to_lowercase(new_label);
@@ -296,15 +299,14 @@ int checkLabels(char *am_file_name) {
                 /* Extract label */
                 char *label_start = line + strlen(".extern") +
                                     1; /* +1 to skip the space after '.extern' */
-                char *label_end = strpbrk(label_start,
-                                          " \t\n"); /* find the end of the label */
+                label_end = strpbrk(label_start,
+                                    " \t\n"); /* find the end of the label */
                 if (!label_end)
                     label_end = label_start +
                                 strlen(label_start); /* end of string if no whitespace found */
 
                 /* Check and add the label as before, but mark it as extern */
-                int label_length = (int) (label_end - label_start);
-                char new_label[MAX_LABEL_LENGTH];
+                label_length = (int) (label_end - label_start);
                 strncpy(new_label, label_start, label_length);
                 new_label[label_length] = '\0';
 
@@ -393,21 +395,24 @@ int getLabelIndex(const char *str) {
 
 
 FILE *preProcess(const char *input_file, const char *output_file) {
-    /* If the line starts with a macro invocation, expand it */
-    Macro *macroToExpand = NULL;
     int i;
-    FILE *inputFile = fopen(input_file, "r");
+    char line[1024];
+    FILE *inputFile = NULL, *outputFile = NULL;
+    Macro *macroToExpand = NULL;
+    Macro *currentMacro = NULL;
+    MacroVector *macroVector = new_macro_vector();
+
+    inputFile = fopen(input_file, "r");
     if (NULL == inputFile) {
         return NULL;
     }
-    FILE *outputFile = fopen(output_file, "w");
+    outputFile = fopen(output_file, "w");
     if (NULL == outputFile) {
+        if (inputFile != NULL) {
+            fclose(inputFile);
+        }
         return NULL;
     }
-    /*TODO CHECK IF ERRORS WHILE OPEN FILES */
-    char line[1024];
-    Macro *currentMacro = NULL;
-    MacroVector *macroVector = new_macro_vector();
 
     /* First pass: build the list of macros */
     while (fgets(line, sizeof(line), inputFile)) {
@@ -457,6 +462,7 @@ FILE *preProcess(const char *input_file, const char *output_file) {
 
         macroToExpand = NULL;
         for (i = 0; i < macroVector->size; ++i) {
+            /* If the line starts with a macro invocation, expand it */
             if (strcmp(line, macroVector->macros[i]->name) == 0) {
                 macroToExpand = macroVector->macros[i];
                 break;
@@ -499,7 +505,6 @@ int GetInput(char buffer[], FILE *fp) {
 }
 
 Boolean isLabelExists(char *label) {
-    int labelIdx = -1;
     if (isLabel(label)) {
         if (!labels[getLabelIndex(label)].isExtern) {
             return TRUE;
@@ -703,16 +708,21 @@ void UpdateLines(char *words[], int num_of_words, int has_label) {
     }
 }
 
-void ProcessLine(char *words[], int num_of_words, int has_label) {
+void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
 
     int i;
     char *command = words[has_label];
     int commandIdx = findCommand(command);
     int instructionIdx = findInstruction(command);
+    int operandTypeIndex = 0;
+    int paramIndex = 0;
     int paramTypes[2] = {0};
     int paramType = -1;
     char *paramWords[2] = {0};
     int expectedParamCount = -1;
+    int first_register_id = 0;
+    int second_register_id = 0;
+    int j = 0;
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -724,8 +734,6 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             return;
         }
         /* Validate each parameter */
-        int operandTypeIndex = 0;
-        int paramIndex = 0;
         for (i = 1 + has_label; i < num_of_words; i++) {
             OperandType expectedType = operandTypes[commandIdx][operandTypeIndex];
             while (expectedType == OPERAND_TYPE_NONE &&
@@ -759,16 +767,13 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
             operandTypeIndex++;
         }
 
-        printBinaryCommand(commandIdx, paramTypes[0], paramTypes[1]);
+        printBinaryCommand(commandIdx, paramTypes[0], paramTypes[1], bin_fp);
 
-        int first_register_id = 0;
-        int second_register_id = 0;
-        int j = 0;
         for (i = 0; i < 2; i++) {
             paramType = paramTypes[i];
             switch (paramType) {
                 case NUMBER:
-                    printBinaryPrameterInteger(atoi(paramWords[i]));
+                    printBinaryPrameterInteger(atoi(paramWords[i]), bin_fp);
                     break;
                 case REGISTER: {
                     switch (i) {
@@ -778,31 +783,38 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
                             if (paramTypes[i + 1] == REGISTER) {
                                 sscanf(paramWords[i + 1], "%*[^0-9]%d",
                                        &second_register_id);
+                                printBinaryPrameterRegister(first_register_id,
+                                                            second_register_id,
+                                                            bin_fp);
                             }
                             break;
                         case 1:
-                            sscanf(paramWords[i - 1], "%*[^0-9]%d",
-                                   &second_register_id);
+                            if (paramTypes[i - 1] != REGISTER) {
+                                sscanf(paramWords[i - 1], "%*[^0-9]%d",
+                                       &first_register_id);
+                            }
                             break;
                         default:
                             break;
                     }
-                    if (first_register_id != 0 || second_register_id != 0) {
+                    if ((first_register_id != 0 || second_register_id != 0) &&
+                        !(first_register_id != 0 && second_register_id != 0)) {
                         printBinaryPrameterRegister(first_register_id,
-                                                    second_register_id);
+                                                    second_register_id, bin_fp);
                     }
                     break;
                 }
                 case LABEL:
                     for (j = 0; j < label_count; j++) {
                         if (strcmp(paramWords[i], labels[j].name) == 0) {
-                            if (labels[j].isEntry == 1) {
-                                printBinaryrPameterLabelEntry(
-                                        labels[j].asm_line_number);
-                            } else if (labels[j].isExtern == 1) {
-                                printBinaryrPameterLabelExtern();
+                            if (labels[j].isExtern == 1) {
+                                printBinaryrPameterLabelExtern(bin_fp);
 
+                            } else {
+                                printBinaryrPameterLabelEntry(
+                                        labels[j].asm_line_number, bin_fp);
                             }
+
                         }
                     }
                     break;
@@ -846,11 +858,11 @@ void ProcessLine(char *words[], int num_of_words, int has_label) {
         }
         switch (instructionIdx) {
             case STRING_INSTRUCTION:
-                printBinaryString(words[has_label + 1]);
+                printBinaryString(words[has_label + 1], bin_fp);
                 break;
             case DATA_INSTRUCTION:
                 for (i = has_label + 1; i < num_of_words; i++) {
-                    printBinaryDataPrameter(atoi(words[i]));
+                    printBinaryDataPrameter(atoi(words[i]), bin_fp);
                 }
                 break;
         }
@@ -914,18 +926,18 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename) {
 }
 
 
-void ParseFile(char *am_file_name) {
+void ParseFile(char *am_file_name, char *bin_file_name) {
     FILE *file = NULL;
     char buffer[80];
     char *input_words[80];
     int line_number = 1;
     State state = -1;
-    int labelIdx = -1;
     int num_of_words = 0;
     int i = 0, j = 0;
     int has_label = 0; /* A flag indicating if a label exists */
     int len = -1;
     int pass = 1;
+    FILE *bin_fp = fopen(bin_file_name, "w");
     for (pass = 1; pass <= 2; pass++) {
         file = fopen(am_file_name, "r");
         if (file == NULL) {
@@ -1073,11 +1085,12 @@ void ParseFile(char *am_file_name) {
                 UpdateLines(input_words, num_of_words, has_label);
             }
             if (pass == 2) {
-                ProcessLine(input_words, num_of_words, has_label);
+                ProcessLine(input_words, num_of_words, has_label, bin_fp);
             }
         }
         fclose(file);
     }
+    fclose(bin_fp);
 }
 
 #include <string.h> /* For strlen */
@@ -1085,8 +1098,6 @@ void ParseFile(char *am_file_name) {
 int main(int argc, char *argv[]) {
     int i = 0, j = 0;
     FILE *file = NULL;
-    FILE *fp = NULL;
-
     if (argc < 2) {
         printf("Please provide file names as command-line arguments.\n");
         return 1;  /* indicating an error */
@@ -1098,11 +1109,15 @@ int main(int argc, char *argv[]) {
         char *file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
         char *file_name_ent = malloc(argLength + 5); /* 5 for ".ent\0" */
         char *file_name_ext = malloc(argLength + 5); /* 5 for ".ext\0" */
+        char *file_name_bin = malloc(argLength + 5); /* 5 for ".bin\0" */
+        char *file_name_ob = malloc(argLength + 4); /* 4 for ".ob\0" */
 
         sprintf(file_name_as, "%s.as", argv[i]);
         sprintf(file_name_am, "%s.am", argv[i]);
         sprintf(file_name_ent, "%s.ent", argv[i]);
         sprintf(file_name_ext, "%s.ext", argv[i]);
+        sprintf(file_name_bin, "%s.bin", argv[i]);
+        sprintf(file_name_ob, "%s.ob", argv[i]);
 
 
         file = fopen(file_name_as, "r");
@@ -1111,13 +1126,17 @@ int main(int argc, char *argv[]) {
             free(file_name_as);
             free(file_name_am);
             free(file_name_ent);
+            free(file_name_ext);
+            free(file_name_bin);
+            free(file_name_ob);
             continue;  /* skip to the next file */
         }
 
         preProcess(file_name_as, file_name_am);
         checkLabels(file_name_am);
-        ParseFile(file_name_am);
+        ParseFile(file_name_am, file_name_bin);
         WriteLabelsToFile(file_name_ent, file_name_ext);
+        binaryToBase64(file_name_bin, file_name_ob);
 
         for (j = 0; j < label_count; j++) {
             printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
@@ -1129,6 +1148,9 @@ int main(int argc, char *argv[]) {
         free(file_name_as);
         free(file_name_am);
         free(file_name_ent);
+        free(file_name_ext);
+        free(file_name_bin);
+        free(file_name_ob);
     }
 
     return 0;  /* indicating success */
@@ -1139,4 +1161,3 @@ void PrintErrorMessage(int condition, int errorMessageId) {
         fprintf(stdout, "Error: %s\n", ErrorMessages[errorMessageId]);
     }
 }
-
