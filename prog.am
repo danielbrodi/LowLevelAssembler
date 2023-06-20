@@ -1,1 +1,1 @@
-4h: sub @r1, @r3
+MAIN: sub @r1, @r3

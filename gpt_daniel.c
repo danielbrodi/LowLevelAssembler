@@ -278,7 +278,8 @@ int checkLabels(char *am_file_name) {
 
             /* Check if the first character is a letter */
             if (!isalpha(new_label[0])) {
-                printf("Invalid label at line %d: Label must start with a letter!\n", line_number);
+                printf("Invalid label at line %d: Label must start with a letter!\n",
+                       line_number);
                 return -1;
             }
 
@@ -724,11 +725,11 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
     int paramIndex = 0;
     int paramTypes[2] = {0};
     int paramType = -1;
+    int labelIdx = -1;
     char *paramWords[2] = {0};
     int expectedParamCount = -1;
     int first_register_id = 0;
     int second_register_id = 0;
-    int j = 0;
 
     if (commandIdx != -1) {
         /* It's a command */
@@ -777,11 +778,12 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
 
         for (i = 0; i < 2; i++) {
             paramType = paramTypes[i];
+            printf("The param %s is a %d!\n", paramWords[i], paramTypes[i]);
             switch (paramType) {
                 case NUMBER:
                     printBinaryPrameterInteger(atoi(paramWords[i]), bin_fp);
                     break;
-                case REGISTER: {
+                case REGISTER:
                     switch (i) {
                         case 0:
                             sscanf(paramWords[i], "%*[^0-9]%d",
@@ -800,28 +802,28 @@ void ProcessLine(char *words[], int num_of_words, int has_label, FILE *bin_fp) {
                                        &first_register_id);
                             }
                             break;
-                        default:
-                            break;
                     }
-                    if ((first_register_id != 0 || second_register_id != 0) &&
-                        !(first_register_id != 0 && second_register_id != 0)) {
+                    if ((first_register_id != 0 ||
+                         second_register_id != 0) &&
+                        !(first_register_id != 0 &&
+                          second_register_id != 0)) {
                         printBinaryPrameterRegister(first_register_id,
-                                                    second_register_id, bin_fp);
+                                                    second_register_id,
+                                                    bin_fp);
                     }
                     break;
-                }
                 case LABEL:
-                    for (j = 0; j < label_count; j++) {
-                        if (strcmp(paramWords[i], labels[j].name) == 0) {
-                            if (labels[j].isExtern == 1) {
-                                printBinaryrPameterLabelExtern(bin_fp);
-
-                            } else {
-                                printBinaryrPameterLabelEntry(
-                                        labels[j].asm_line_number, bin_fp);
-                            }
-
+                    if (isLabel(paramWords[i])) {
+                        labelIdx = getLabelIndex(paramWords[i]);
+                        if (labels[labelIdx].isExtern) {
+                            printBinaryrPameterLabelExtern(bin_fp);
+                        } else {
+                            printBinaryrPameterLabelEntry(
+                                    labels[labelIdx].asm_line_number, bin_fp);
                         }
+                    } else {
+                        printf("Error! label %s does not exist neither as a label nor as an extern label.\n",
+                               paramWords[i]);
                     }
                     break;
             }
@@ -1047,10 +1049,10 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                         break;
 
 
-
                     case EXPECTING_COMMA:
                         if (isalnum(c)) {
-                            printf("Error on line %d: Missing comma before char %c\n", line_number, c);
+                            printf("Error on line %d: Missing comma before char %c\n",
+                                   line_number, c);
                             buffer[i - 1] = '\0';
                             input_words[num_of_words++] = buffer + i;
                             state = IN_OPERAND;
@@ -1068,7 +1070,8 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                             input_words[num_of_words++] = buffer + i;
                             state = IN_OPERAND;
                         } else if (c == ',') {
-                            printf("Error on line %d: Multiple consecutive commas\n", line_number);
+                            printf("Error on line %d: Multiple consecutive commas\n",
+                                   line_number);
                             continue;
                         } else if (isspace(c)) {
                             continue;
@@ -1091,7 +1094,7 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
 
             }
             /* Trim trailing spaces from the operand */
-            for (i = num_of_words - 1; i>= 0; i--) {
+            for (i = num_of_words - 1; i >= 0; i--) {
                 len = strlen(input_words[i]);
                 while (len > 0 && isspace(input_words[i][len - 1])) {
                     input_words[i][len - 1] = '\0';
@@ -1099,7 +1102,8 @@ void ParseFile(char *am_file_name, char *bin_file_name) {
                 }
             }
             if (last_non_space == ',') {
-                printf("Error on line %d: Extra comma at the end of the line\n", line_number);
+                printf("Error on line %d: Extra comma at the end of the line\n",
+                       line_number);
             }
             input_words[num_of_words] = NULL;
             if (pass == 1) {
