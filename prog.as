@@ -1,1 +1,3 @@
-MAIN: inc r5
+.entry MAIN
+.extern Daniel
+MAIN: sub @r3, Daniel
