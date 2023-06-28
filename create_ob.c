@@ -35,11 +35,11 @@ char decimalToBase64(int decimal) {
         return '/';
 }
 
-void binaryToBase64(const char *input_file, const char *output_file) {
-    int decimal1 = -1, decimal2 = -1;
-    char base64_1 = -1, base64_2 = -1;
-    char buffer[9];  /* Buffer to store binary digits (8 + '\0') */
+void binaryToBase64(const char *input_file, const char *output_file, int IC, int DC) {
     FILE *inputFile = NULL, *outputFile = NULL;
+    char buffer[13];  /* Buffer to store binary digits (12 + '\0') */
+    char word1[7];
+    char word2[7];
 
     inputFile = fopen(input_file, "r");
     if (NULL == inputFile) {
@@ -51,31 +51,36 @@ void binaryToBase64(const char *input_file, const char *output_file) {
         printf("Failed to open the file.\n");
         exit(1);
     }
-
+/*input_file*/
     /* Read the file line by line */
+    fprintf(outputFile,"%d %d\n", IC, DC);
     while (fgets(buffer, sizeof(buffer), inputFile)) {
-        /* Divide the binary number into two parts of length 6 */
-        char part1[7];
-        char part2[7];
-        strncpy(part1, buffer, 6);
-        part1[6] = '\0';
-        strncpy(part2, buffer + 6, 6);
-        part2[6] = '\0';
+    
+      if (buffer[0] == '\n')
+            continue;
+        strncpy(word1, buffer, 6);
+        word1[6] = '\0';
 
-        /* Convert each part from binary to decimal */
-        decimal1 = binaryToDecimal(part1);
-        decimal2 = binaryToDecimal(part2);
+        strncpy(word2, buffer + 6, 6);
+        word2[6] = '\0';
+
+        /* Convert each word to decimal */
+        int decimal1 = binaryToDecimal(word1);
+        int decimal2 = binaryToDecimal(word2);
 
         /* Convert each decimal to base64 character */
-        base64_1 = decimalToBase64(decimal1);
-        base64_2 = decimalToBase64(decimal2);
+        char base641 = decimalToBase64(decimal1);
+        char base642 = decimalToBase64(decimal2);
 
         /* Write the base64 characters to the output file */
-        fputc(base64_1, outputFile);
-        fputc(base64_2, outputFile);
+        fputc(base641, outputFile);
+        fputc(base642, outputFile);
         fputc('\n', outputFile);
+         /* Print the binary words, decimal values, and base64 characters */
+        printf("Binary: %s %s \t Decimal: %d %d \t Base64: %c %c\n", word1, word2, decimal1, decimal2, base641, base642);
+   
     }
-
+    
     /* Close the files */
     fclose(inputFile);
     fclose(outputFile);

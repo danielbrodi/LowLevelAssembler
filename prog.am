@@ -1,3 +1,2 @@
-.entry MAIN
-.extern Daniel
-MAIN: sub @r3, Daniel
+MAIN: mov @r3, ,MAIN
+sub @r1 @r4,

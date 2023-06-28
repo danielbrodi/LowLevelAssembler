@@ -15,5 +15,5 @@
 int binaryToDecimal(char *binary);
 char decimalToBase64(int decimal);
 
-void binaryToBase64(const char *input_file, const char *output_file);
+void binaryToBase64(const char *input_file, const char *output_file, int IC, int DC);
 #endif

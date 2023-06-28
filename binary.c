@@ -9,8 +9,7 @@ void printBinary(int value, int numBits, FILE *outputFile) {
     }
 }
 
-void printBinaryCommand(int commandNum, int firstParamType, int secondParamType,
-                        FILE *outputFile) {
+void printBinaryCommand(int commandNum, int firstParamType, int secondParamType, FILE *outputFile) {
     /* Print the last 3 bits for the first parameter type */
     printBinary(firstParamType, 3, outputFile);
 
@@ -40,10 +39,7 @@ void printBinaryPrameterInteger(int number, FILE *outputFile) {
     fprintf(outputFile, "\n");
 }
 
-void printBinaryPrameterRegister(int sourceOperand, int targetOperand,
-                                 FILE *outputFile) {
-    printf("First register id: %d, second register id: %d\n", sourceOperand,
-           targetOperand);
+void printBinaryPrameterRegister(int sourceOperand, int targetOperand, FILE *outputFile) {
     /*Print the next 5 bits for the source operand*/
     printBinary(sourceOperand, 5, outputFile);
 
@@ -60,10 +56,10 @@ void printBinaryrPameterLabelEntry(int labelCode, FILE *outputFile) {
 
     /*Print the next 10 bits for the label code*/
     printBinary(labelCode, 10, outputFile);
-
+    
     /*Print the first 2 bits as "10"*/
     fprintf(outputFile, "10");
-
+    
     fprintf(outputFile, "\n");
 
 }
