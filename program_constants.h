@@ -8,16 +8,19 @@
 #ifndef MAMAN14_PROGRAM_CONSTANTS_H
 #define MAMAN14_PROGRAM_CONSTANTS_H
 
+/* Maximum length and number of lines and labels */
 #define MAX_LINE_LENGTH 80
 #define MAX_LABEL_LENGTH 32
 #define MAX_LINES 1000
 
+/* Different states in the parsing process */
 typedef enum {
     IN_LABEL_OR_COMMAND, AFTER_LABEL, IN_COMMAND, AFTER_COMMAND,
     AFTER_LABEL_OR_COMMAND, IN_OPERAND, AFTER_OPERAND, EXPECTING_COMMA,
     AFTER_OPERAND_AND_WAITING
 } State;
 
+/* Struct to hold each line in the source code */
 typedef struct Line {
     char **input_words;
     struct Line *next;
@@ -26,6 +29,7 @@ typedef struct Line {
     int has_label;
 } Line;
 
+/* Types of operands that commands can operate on */
 typedef enum {
     OPERAND_TYPE_NONE,
     OPERAND_TYPE_LABEL,
@@ -35,6 +39,7 @@ typedef enum {
     OPERAND_TYPE_ALL
 } OperandType;
 
+/* Struct to hold labels and their attributes */
 typedef struct {
     char name[MAX_LABEL_LENGTH];
     int line_number;
@@ -43,6 +48,7 @@ typedef struct {
     int isEntry;
 } Label;
 
+/* Lists of supported commands */
 static const char *commandsList[] = {
         "mov", "cmp", "add", "sub", "not", "clr",
         "lea", "inc", "dec", "jmp", "bne", "red",
@@ -50,12 +56,14 @@ static const char *commandsList[] = {
 };
 static const int commandsListSize = sizeof(commandsList) / sizeof(char *);
 
+/* List of supported instructions */
 static const char *instructionsList[] = {
         "data", "string", "entry", "extern"
 };
 static const int instructionsListSize =
         sizeof(instructionsList) / sizeof(char *);
 
+/* Lists of supported registers */
 static const char *registersList[] = {
         "r1", "r2", "r3", "r4", "r5", "r6", "r7",
 };

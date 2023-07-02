@@ -1,1 +1,1 @@
-mov:,, mov: mov @r3, ,@r4
+mov @r3          ,    @r4

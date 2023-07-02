@@ -1,3 +1,11 @@
+/*********************************FILE__HEADER*********************************\
+* File:					gpt_daniel.c
+* Authors:              Daniel Brodsky & Lior Katav
+* Date:					July-2023
+* Description:
+\******************************************************************************/
+
+/******************************** Header Files ********************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,25 +17,163 @@
 #include "create_ob.h"
 #include "program_constants.h"
 
+/******************* Data Structures and Type Definitions ******************(**/
+/* Struct defining the program's state. */
+typedef struct {
+    Label labels[MAX_LINES]; /* Array of labels used in the program. */
+    Label externalLabels[MAX_LINES]; /* Array of external labels used in the program. */
+    int label_count; /* Count of labels used. */
+    int externalLabel_count; /* Count of external labels used. */
+    int current_line_number; /* Current line number being processed. */
+    int IC; /* Instruction Counter - total number of instruction words in the program. */
+    int DC; /* Data Counter - total number of data words in the program. */
+} ProgramState;
+
+/**************************** Forward Declarations ****************************/
+/* Label related functions */
+Status checkLabels(char *am_file_name, ProgramState *programState);
+
+int isLabel(const char *str, ProgramState *programState);
+
+int getLabelIndex(const char *str, ProgramState *programState);
+
+Boolean isLabelExists(char *label, ProgramState *programState);
+
+void addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState);
+
+/* Command and instruction related functions */
+int isNumber(const char *str);
+
+int isRegister(const char *str);
+
+int findInstruction(const char *instruction);
+
+int findCommand(char *command);
+
+int
+isValidParam(char *param, OperandType expectedType, ProgramState *programState);
+
+int findParameterType(char *operand, ProgramState *programState);
+
+void UpdateLines(char *words[], int num_of_words, int has_label,
+                 ProgramState *programState);
+
+/* File processing and parsing functions */
+Status preProcess(const char *input_file, const char *output_file);
+
+Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState);
+
+void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
+                       ProgramState *programState);
+
+Status
+ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState);
+
+/* Error printing functions */
+void PrintCommaErrorMessage(int lineNumber, CommaErrorType errorMessageId,
+                            char character);
+
+void PrintLabelErrorMessage(int lineNumber, LabelErrorType errorMessageId,
+                            char *labelName);
+
 void PrintCommandInstructionErrorMessage(int lineNumber,
                                          CommandInstructionErrorType errorMessageId,
                                          char *commandOrInstructionName,
                                          char *additionalParam);
+
 /******************************************************************************/
-void PrintLabelErrorMessage(int lineNumber, LabelErrorType errorMessageId,
-                            char *labelName);
+/******************************* Main  Function *******************************/
+int main(int argc, char *argv[]) {
+    ProgramState programState;
+    Status stages_status = SUCCESS;
+    int i = 0, j = 0;
+    FILE *file = NULL;
+    size_t argLength = strlen(argv[i]);
+
+    char *file_name_as = NULL, *file_name_am = NULL, *file_name_ent = NULL,
+            *file_name_ext = NULL, *file_name_bin = NULL, *file_name_ob = NULL;
+
+    if (argc < 2) {
+        printf("Please provide file names as command-line arguments.\n");
+        return FAILURE;
+    }
+    for (i = 1; i < argc; i++) {
+        printf("%s\n", argv[i]);
+        /* Append extensions to the current file name */
+        file_name_as = malloc(argLength + 4); /* 4 for ".as\0" */
+        file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
+        file_name_ent = malloc(argLength + 5); /* 5 for ".ent\0" */
+        file_name_ext = malloc(argLength + 5); /* 5 for ".ext\0" */
+        file_name_bin = malloc(argLength + 5); /* 5 for ".bin\0" */
+        file_name_ob = malloc(argLength + 4); /* 4 for ".ob\0" */
+
+        sprintf(file_name_as, "%s.as", argv[i]);
+        sprintf(file_name_am, "%s.am", argv[i]);
+        sprintf(file_name_ent, "%s.ent", argv[i]);
+        sprintf(file_name_ext, "%s.ext", argv[i]);
+        sprintf(file_name_bin, "%s.bin", argv[i]);
+        sprintf(file_name_ob, "%s.ob", argv[i]);
+
+
+        file = fopen(file_name_as, "r");
+        if (file == NULL) {
+            printf("Failed to open the file: %s\n", file_name_as);
+            free(file_name_as);
+            free(file_name_am);
+            free(file_name_ent);
+            free(file_name_ext);
+            free(file_name_bin);
+            free(file_name_ob);
+            continue;  /* skip to the next file */
+        }
+
+        programState.current_line_number = 100; /* starting memory address */
+
+        /* start process */
+        stages_status += preProcess(file_name_as, file_name_am);
+        stages_status += checkLabels(file_name_am, &programState);
+        stages_status += ParseFile(file_name_am, file_name_bin, &programState);
+
+        if (SUCCESS == stages_status) {
+            WriteLabelsToFile(file_name_ent, file_name_ext, &programState);
+            binaryToBase64(file_name_bin, file_name_ob, programState.IC,
+                           programState.DC);
+        }
+        for (j = 0; j < programState.label_count; j++) {
+            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
+                   programState.labels[j].name,
+                   programState.labels[j].line_number,
+                   programState.labels[j].asm_line_number);
+
+            programState.labels[j].name[0] = '\0';
+            programState.labels[j].line_number = 0;
+            programState.labels[j].asm_line_number = 0;
+            programState.labels[j].isExtern = 0;
+            programState.labels[j].isEntry = 0;
+
+        }
+
+        /* reset program state settings */
+        programState.IC = 0, programState.DC = 0;
+        programState.label_count = 0;
+        programState.externalLabel_count = 0;
+        programState.current_line_number = 100;
+
+        /*remove(file_name_bin);*/
+
+        fclose(file);  /* Close the file when done */
+        free(file_name_as);
+        free(file_name_am);
+        free(file_name_ent);
+        free(file_name_ext);
+        free(file_name_bin);
+        free(file_name_ob);
+    }
+
+    return 0;
+}
 /******************************************************************************/
-void PrintCommaErrorMessage(int lineNumber, CommaErrorType errorMessageId,
-                            char character);
-/******************************************************************************/
-typedef struct {
-    Label labels[MAX_LINES];
-    Label externalLabels[MAX_LINES];
-    int label_count;
-    int externalLabel_count;
-    int current_line_number;
-    int IC, DC;
-} ProgramState;
+
 /******************************************************************************/
 Status checkLabels(char *am_file_name, ProgramState *programState) {
     int i = 0;
@@ -175,6 +321,7 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
 
     return SUCCESS;
 }
+
 /******************************************************************************/
 int isNumber(const char *str) {
     if (*str == '-' || *str == '+') /* Check if the number is negative */
@@ -187,6 +334,7 @@ int isNumber(const char *str) {
     }
     return 1;
 }
+
 /******************************************************************************/
 int isRegister(const char *str) {
     const char *operand = NULL;
@@ -203,6 +351,7 @@ int isRegister(const char *str) {
     }
     return 0;
 }
+
 /******************************************************************************/
 int isLabel(const char *str, ProgramState *programState) {
     int i;
@@ -213,6 +362,18 @@ int isLabel(const char *str, ProgramState *programState) {
     }
     return 0;
 }
+
+/******************************************************************************/
+Boolean isLabelExists(char *label, ProgramState *programState) {
+    if (isLabel(label, programState)) {
+        if (!programState->labels[getLabelIndex(label,
+                                                programState)].isExtern) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 /******************************************************************************/
 int getLabelIndex(const char *str, ProgramState *programState) {
     int i;
@@ -223,6 +384,7 @@ int getLabelIndex(const char *str, ProgramState *programState) {
     }
     return -1;
 }
+
 /******************************************************************************/
 Status preProcess(const char *input_file, const char *output_file) {
     int i;
@@ -323,16 +485,7 @@ Status preProcess(const char *input_file, const char *output_file) {
 
     return SUCCESS;
 }
-/******************************************************************************/
-Boolean isLabelExists(char *label, ProgramState *programState) {
-    if (isLabel(label, programState)) {
-        if (!programState->labels[getLabelIndex(label,
-                                                programState)].isExtern) {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
+
 /******************************************************************************/
 int findInstruction(const char *instruction) {
     int instructionIdx;
@@ -356,6 +509,7 @@ int findInstruction(const char *instruction) {
     /* printf("Debug: Instruction '%s' not found\n", comparisonInstruction); */
     return -1;
 }
+
 /******************************************************************************/
 int findCommand(char *command) {
     int i;
@@ -368,6 +522,7 @@ int findCommand(char *command) {
     }
     return -1;
 }
+
 /******************************************************************************/
 int isValidParam(char *param, OperandType expectedType,
                  ProgramState *programState) {
@@ -390,6 +545,7 @@ int isValidParam(char *param, OperandType expectedType,
             return 0;
     }
 }
+
 /******************************************************************************/
 int findParameterType(char *operand, ProgramState *programState) {
     ProgramState *currentProgramState = programState;
@@ -407,6 +563,7 @@ int findParameterType(char *operand, ProgramState *programState) {
         return OPERAND_TYPE_NONE; /* not a valid type */
     }
 }
+
 /******************************************************************************/
 void
 addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState) {
@@ -418,6 +575,7 @@ addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState) {
     /* Increment the counter for the next call */
     currentProgramState->externalLabel_count++;
 }
+
 /******************************************************************************/
 void UpdateLines(char *words[], int num_of_words, int has_label,
                  ProgramState *programState) {
@@ -501,6 +659,7 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
         }
     }
 }
+
 /******************************************************************************/
 Status
 ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
@@ -719,6 +878,7 @@ ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
     }
     return SUCCESS;
 }
+
 /******************************************************************************/
 void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
                        ProgramState *programState) {
@@ -768,6 +928,7 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
         fclose(extern_fp);
     }
 }
+
 /******************************************************************************/
 Status
 ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
@@ -1005,96 +1166,8 @@ ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
     }
     return ret;
 }
-/******************************************************************************/
-int main(int argc, char *argv[]) {
-    ProgramState programState;
-    Status stages_status = SUCCESS;
-    int i = 0, j = 0;
-    FILE *file = NULL;
-    size_t argLength = strlen(argv[i]);
 
-    char *file_name_as = NULL, *file_name_am = NULL, *file_name_ent = NULL,
-            *file_name_ext = NULL, *file_name_bin = NULL, *file_name_ob = NULL;
-
-    if (argc < 2) {
-        printf("Please provide file names as command-line arguments.\n");
-        return FAILURE;
-    }
-    for (i = 1; i < argc; i++) {
-        printf("%s\n", argv[i]);
-        /* Append extensions to the current file name */
-        file_name_as = malloc(argLength + 4); /* 4 for ".as\0" */
-        file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
-        file_name_ent = malloc(argLength + 5); /* 5 for ".ent\0" */
-        file_name_ext = malloc(argLength + 5); /* 5 for ".ext\0" */
-        file_name_bin = malloc(argLength + 5); /* 5 for ".bin\0" */
-        file_name_ob = malloc(argLength + 4); /* 4 for ".ob\0" */
-
-        sprintf(file_name_as, "%s.as", argv[i]);
-        sprintf(file_name_am, "%s.am", argv[i]);
-        sprintf(file_name_ent, "%s.ent", argv[i]);
-        sprintf(file_name_ext, "%s.ext", argv[i]);
-        sprintf(file_name_bin, "%s.bin", argv[i]);
-        sprintf(file_name_ob, "%s.ob", argv[i]);
-
-
-        file = fopen(file_name_as, "r");
-        if (file == NULL) {
-            printf("Failed to open the file: %s\n", file_name_as);
-            free(file_name_as);
-            free(file_name_am);
-            free(file_name_ent);
-            free(file_name_ext);
-            free(file_name_bin);
-            free(file_name_ob);
-            continue;  /* skip to the next file */
-        }
-
-        programState.current_line_number = 100; /* starting memory address */
-
-        /* start process */
-        stages_status += preProcess(file_name_as, file_name_am);
-        stages_status += checkLabels(file_name_am, &programState);
-        stages_status += ParseFile(file_name_am, file_name_bin, &programState);
-
-        if (SUCCESS == stages_status) {
-            WriteLabelsToFile(file_name_ent, file_name_ext, &programState);
-            binaryToBase64(file_name_bin, file_name_ob, programState.IC,
-                           programState.DC);
-        }
-        for (j = 0; j < programState.label_count; j++) {
-            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
-                   programState.labels[j].name,
-                   programState.labels[j].line_number,
-                   programState.labels[j].asm_line_number);
-
-            programState.labels[j].name[0] = '\0';
-            programState.labels[j].line_number = 0;
-            programState.labels[j].asm_line_number = 0;
-            programState.labels[j].isExtern = 0;
-            programState.labels[j].isEntry = 0;
-
-        }
-
-        /* reset program state settings */
-        programState.IC = 0, programState.DC = 0;
-        programState.label_count = 0;
-        programState.externalLabel_count = 0;
-        programState.current_line_number = 100;
-
-        /*remove(file_name_bin);*/
-
-        fclose(file);  /* Close the file when done */
-        free(file_name_as);
-        free(file_name_am);
-        free(file_name_ent);
-        free(file_name_ext);
-        free(file_name_bin);
-        free(file_name_ob);
-    }
-
-    return 0;
-}
+/************************** Error Handling Functions **************************/
 /******************************************************************************/
 void printErrorMessage(int lineNumber, char *errorMessage) {
     fprintf(stdout, "Error on line %d: %s\n", lineNumber, errorMessage);
@@ -1117,6 +1190,7 @@ void PrintLabelErrorMessage(int lineNumber, LabelErrorType errorMessageId,
     }
     printErrorMessage(lineNumber, errorMessage);
 }
+
 /******************************************************************************/
 void PrintCommandInstructionErrorMessage(int lineNumber,
                                          CommandInstructionErrorType errorMessageId,
