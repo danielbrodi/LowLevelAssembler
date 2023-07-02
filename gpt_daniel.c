@@ -927,7 +927,7 @@ ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
                     break;
 
                 case AFTER_OPERAND:
-                    if (isalnum(c) || c == '-' || c == '+') {
+                    if (isalnum(c) || c == '-' || c == '+' || c == '@') {
                         input_words[(num_of_words)++] = buffer + i;
                         state = IN_OPERAND;
                     } else if (c == ',') {
