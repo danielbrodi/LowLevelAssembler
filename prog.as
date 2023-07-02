@@ -1,2 +1,1 @@
-MAIN: mov @r3, ,MAIN
-sub @r1 @r4
+mov @r3 ,@r4

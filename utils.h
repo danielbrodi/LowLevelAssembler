@@ -29,4 +29,8 @@ char *my_strdup(const char *s);
 
 int filter_line(const char *line);
 
+void to_lowercase(char *str);
+
+int startsWith(const char *str, const char *prefix);
+
 #endif

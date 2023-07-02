@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #include "utils.h"
 /***************************** Global Definitions *****************************/
@@ -25,6 +26,7 @@ char *my_strdup(const char *s) {
     return new_str;
 }
 
+/******************************************************************************/
 int filter_line(const char *line) {
     /* Remove leading spaces */
     char start = line[0];
@@ -35,5 +37,18 @@ int filter_line(const char *line) {
 
     /* If it's not, it's a valid line */
     return 0;
+}
+
+/******************************************************************************/
+void to_lowercase(char *str) {
+    int i;
+    for (i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
+/******************************************************************************/
+int startsWith(const char *str, const char *prefix) {
+    return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 /******************************************************************************/
