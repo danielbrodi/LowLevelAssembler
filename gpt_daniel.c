@@ -50,6 +50,10 @@ int findInstruction(const char *instruction);
 
 int findCommand(char *command);
 
+int isReservedKeyword(char *word, ProgramState *programState);
+
+int isValidMacroDefinition(const char *line);
+
 int
 isValidParam(char *param, OperandType expectedType, ProgramState *programState);
 
@@ -59,7 +63,8 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
                  ProgramState *programState);
 
 /* File processing and parsing functions */
-Status preProcess(const char *input_file, const char *output_file);
+Status preProcess(const char *input_file, const char *output_file,
+                  ProgramState *programState);
 
 Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState);
 
@@ -130,7 +135,7 @@ int main(int argc, char *argv[]) {
         programState.current_line_number = 100; /* starting memory address */
 
         /* start process */
-        stages_status += preProcess(file_name_as, file_name_am);
+        stages_status += preProcess(file_name_as, file_name_am, &programState);
         stages_status += checkLabels(file_name_am, &programState);
         stages_status += ParseFile(file_name_am, file_name_bin, &programState);
 
@@ -386,7 +391,8 @@ int getLabelIndex(const char *str, ProgramState *programState) {
 }
 
 /******************************************************************************/
-Status preProcess(const char *input_file, const char *output_file) {
+Status preProcess(const char *input_file, const char *output_file,
+                  ProgramState *programState) {
     int i;
     char line[1024];
     FILE *inputFile = NULL, *outputFile = NULL;
@@ -413,12 +419,28 @@ Status preProcess(const char *input_file, const char *output_file) {
         }
         /* If the line starts a macro definition */
         if (strncmp(line, "mcro", 4) == 0) {
+            if (!isValidMacroDefinition(line)) {
+                printf("Macro definition line %s is not defiend as needed!!", line);
+                return FAILURE;
+            }
             /* Remove the newline at the end of the line, if present */
             if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = '\0';
             /* Start a new macro definition */
             currentMacro = new_macro(line + 5);
+            if (isReservedKeyword(currentMacro->name, programState)) {
+                printf("Macro %s is a reserved word!", currentMacro->name);
+                return FAILURE;
+            }
             push_back_macro(macroVector, currentMacro);
         } else if (strncmp(line, "endmcro", 7) == 0) {
+            /* Check that the endmcro line has no extra characters */
+            char *end_of_line = line + strlen(line) - 1;
+            if (*end_of_line == '\n')
+                *end_of_line = '\0';
+            if (strcmp(line, "endmcro") != 0) {
+                printf("Macro definition line %s is not defiend as needed!!", line);
+                return FAILURE;
+            }
             /* End of the current macro definition */
             currentMacro = NULL;
         } else if (currentMacro) {
@@ -521,6 +543,39 @@ int findCommand(char *command) {
         }
     }
     return -1;
+}
+
+/******************************************************************************/
+int isReservedKeyword(char *word, ProgramState *programState) {
+    if (findCommand(word) != -1) {
+        return 1;
+    }
+    if (findInstruction(word) != -1) {
+        return 1;
+    }
+    if (isRegister(word)) {
+        return 1;
+    }
+    if (isLabel(word, programState)) {
+        return 1;
+    }
+    return 0;
+}
+
+/******************************************************************************/
+int isValidMacroDefinition(const char *line) {
+    /* A valid macro definition has 2 space-separated words */
+    int words = 0;
+    while (*line) {
+        /* Skip spaces */
+        while (*line && isspace(*line)) line++;
+        if (!*line) break;
+        /* Found a word */
+        words++;
+        /* Skip the word */
+        while (*line && !isspace(*line)) line++;
+    }
+    return (words == 2);
 }
 
 /******************************************************************************/
@@ -1172,6 +1227,7 @@ ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
 void printErrorMessage(int lineNumber, char *errorMessage) {
     fprintf(stdout, "Error on line %d: %s\n", lineNumber, errorMessage);
 }
+
 /******************************************************************************/
 void PrintCommaErrorMessage(int lineNumber, CommaErrorType errorMessageId,
                             char character) {
@@ -1179,6 +1235,7 @@ void PrintCommaErrorMessage(int lineNumber, CommaErrorType errorMessageId,
     sprintf(errorMessage, CommaErrorMessages[errorMessageId], character);
     printErrorMessage(lineNumber, errorMessage);
 }
+
 /******************************************************************************/
 void PrintLabelErrorMessage(int lineNumber, LabelErrorType errorMessageId,
                             char *labelName) {
