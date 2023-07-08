@@ -185,7 +185,7 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
     char line[MAX_LINE_LENGTH] = {0};
     int line_number = 0;
     char new_label[MAX_LABEL_LENGTH] = {0};
-    char *label_end = NULL;
+    char *ptr = NULL, *label_end = NULL;
     int label_length = -1;
 
     FILE *file = fopen(am_file_name, "r");
@@ -199,11 +199,17 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
     while (fgets(line, sizeof(line), file)) {
         line_number++;
 
+        ptr = line;
+
+        while (isspace((unsigned char) *line)) {
+            ptr++;
+        }
+
         /* Check if line starts with a label */
         label_end = strchr(line, ':');
         if (label_end) {
             /* Extract label */
-            label_length = (int) (label_end - line);
+            label_length = (int) (label_end - ptr);
             /* Check if label length is less than 31 */
             if (label_length >= MAX_LABEL_LENGTH) {
                 PrintLabelErrorMessage(line_number, LABEL_LENGTH_EXCEEDS_LIMIT,
@@ -212,7 +218,7 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
             }
 
             /* Check if label is a saved word */
-            strncpy(new_label, line, label_length);
+            strncpy(new_label, ptr, label_length);
             new_label[label_length] = '\0';
             to_lowercase(new_label);
 
