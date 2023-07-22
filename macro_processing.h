@@ -13,10 +13,10 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "macro.h"
 #include "program_constants.h"
-#include "utils.h"
 #include "param_validation.h"
-#include "macro_vector.h"
+#include "utils.h"
 
 /* File processing and parsing functions */
 Status preProcess(const char *input_file, const char *output_file, ProgramState *programState);

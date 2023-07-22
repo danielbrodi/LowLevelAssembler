@@ -153,8 +153,8 @@ typedef enum {
 /******************* Data Structures and Type Definitions ******************(**/
 /* Struct defining the program's state. */
 typedef struct {
-    Label* labels; /* Pointer to the dynamically allocated array of labels used in the program. */
-  Label * externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
+    Label *labels; /* Pointer to the dynamically allocated array of labels used in the program. */
+    Label *externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
     int label_count; /* Count of labels used. */
     int externalLabel_count; /* Count of external labels used. */
     int current_line_number; /* Current line number being processed. */

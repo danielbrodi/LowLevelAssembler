@@ -127,7 +127,7 @@ while (fgets(line, sizeof(line), inputFile)) {
     if (macroToExpand) {
         /* Expand the macro */
         for (i = 0; i < macroToExpand->commands->size; ++i) {
-            char *expandedLine = macroToExpand->commands->commands[i];
+            char *expandedLine = macroToExpand->commands->items[i];
             /* Remove leading spaces from expanded line */
             while (isspace((unsigned char) *expandedLine)) {
                 expandedLine++;
