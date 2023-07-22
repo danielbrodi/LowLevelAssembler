@@ -1,20 +1,5 @@
-/*********************************FILE__HEADER*********************************\
-* File:					macro.c
-* Author:				Daniel Brodsky			 		  												  								
-* Date:					June-2023			   								
-* Description:			
-\******************************************************************************/
+#include "macro_vector.h"
 
-/******************************** Header Files ********************************/
-#include <stdlib.h>
-
-#include "macro.h"
-#include "utils.h"
-
-/***************************** Global Definitions *****************************/
-#define INITIAL_CAPACITY 4
-
-/************************* Functions  Implementations *************************/
 Vector *new_vector() {
     Vector *v = malloc(sizeof(Vector));
     v->capacity = INITIAL_CAPACITY;
@@ -24,14 +9,21 @@ Vector *new_vector() {
 }
 
 void push_back(Vector *v, char *value) {
+ char **new_commands = NULL;
     if (v->size == v->capacity) {
         v->capacity *= 2;
-        v->commands = (char **) realloc(v->commands,
-                                        sizeof(char *) * v->capacity);
-        /*TODO free pre-assigned memory if failed to realloc */
+       new_commands = realloc(v->commands, sizeof(char *) * v->capacity);
+        if (new_commands == NULL) {
+            fprintf(stderr, "Error reallocating memory\n");
+            /* Handle the error condition appropriately (e.g., return an error code) */
+            return;
+        }
+        v->commands = new_commands;
     }
+
     v->commands[v->size++] = my_strdup(value);
 }
+
 
 void free_vector(Vector *v) {
     int i;
@@ -70,4 +62,3 @@ void free_macro(Macro *m) {
     free_vector(m->commands);
     free(m);
 }
-/******************************************************************************/

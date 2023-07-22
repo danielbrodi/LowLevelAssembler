@@ -31,7 +31,7 @@ int filter_line(const char *line) {
     /* Remove leading spaces */
     char start = line[0];
     /* Check if the line is a comment or blank line */
-    if (start == ';' || start == '\n' || start == '\t') {
+    if (start == ';' || start == '\n') {
         return 1;
     }
 
@@ -52,3 +52,4 @@ int startsWith(const char *str, const char *prefix) {
     return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 /******************************************************************************/
+

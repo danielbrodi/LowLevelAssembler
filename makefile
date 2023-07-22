@@ -1,7 +1,8 @@
 CC = gcc
 CFLAGS = -ansi -pedantic -Wall
 
-SRC = gpt_daniel.c macro.c utils.c binary.c create_ob.c
+SRC = assembler.c macro_vector.c macro_processing.c label_processing.c  binary_and_ob_processing.c am_file_processing.c print_error.c param_validation.c utils.c
+
 
 TARGET = assembler
 
@@ -14,3 +15,4 @@ $(TARGET): $(SRC)
 
 clean:
 	rm -f $(TARGET)
+

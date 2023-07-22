@@ -1,6 +1,7 @@
 /*********************************FILE__HEADER*********************************\
 * File:					program_constants.h
-* Author:				Daniel Brodsky			 		  												  								
+* Author:				Daniel and lior
+		 		  												  								
 * Date:					June-2023			   								
 * Description:			
 \******************************************************************************/
@@ -88,7 +89,7 @@ static const OperandType operandTypes[][2] = {
         {OPERAND_TYPE_NONE,  OPERAND_TYPE_NONE}  /* stop */
 };
 
-int paramCount[] = {
+static const int paramCount[] = {
         2,  /* mov */
         2,  /* cmp */
         2,  /* add */
@@ -127,18 +128,6 @@ typedef enum {
     ENTRY_REQUIRES_EXISTING_LABEL,
     EXTERN_REQUIRES_NONEXISTING_LABEL
 } LabelErrorType;
-static const char *LabelErrorMessages[] = {
-        "Label length exceeds limit of 80 characters.",
-        "Label '%s' is a reserved command word.",
-        "Label '%s' is a reserved instruction word!",
-        "Label '%s' is a reserved register word.",
-        "Invalid label format for '%s'.",
-        "Label must start with a letter, and the label '%s' is invalid.",
-        "Duplicated label '%s'.",
-        "Label '%s' does not exist neither as a label nor as an extern label.",
-        "'Entry' instruction requires label that exists but Label '%s' does not exist.",
-        "'Extern' instruction requires label that doesn't exist but Label '%s' already exists."
-};
 
 typedef enum {
     INCORRECT_NUM_OF_PARAMS_FOR_COMMAND = 0,
@@ -147,13 +136,6 @@ typedef enum {
     INCORRECT_NUM_OF_PARAMS_FOR_INSTRUCTION,
     NOT_VALID_COMMAND_OR_INSTRUCTION
 } CommandInstructionErrorType;
-static const char *CommandInstructionErrorMessages[] = {
-        "Incorrect number of parameters for command '%s'.",
-        "Too many parameters for command '%s'.",
-        "Invalid parameter '%s' for command '%s'.",
-        "Incorrect number of parameters for instruction '%s'.",
-        "Error: '%s' is not a valid command or instruction!"
-};
 
 typedef enum {
     ILLEGAL_COMMA = 0,
@@ -161,12 +143,6 @@ typedef enum {
     MULTIPLE_CONSECUTIVE_COMMAS,
     EXTRA_COMMA_END_OF_LINE
 } CommaErrorType;
-static const char *CommaErrorMessages[] = {
-        "Illegal comma",
-        "Missing comma before char %c",
-        "Multiple consecutive commas",
-        "Extra comma at the end of the line"
-};
 
 typedef enum {
     NUMBER = 1,
@@ -174,4 +150,17 @@ typedef enum {
     REGISTER = 5
 } Types;
 
+/******************* Data Structures and Type Definitions ******************(**/
+/* Struct defining the program's state. */
+typedef struct {
+    Label* labels; /* Pointer to the dynamically allocated array of labels used in the program. */
+  Label * externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
+    int label_count; /* Count of labels used. */
+    int externalLabel_count; /* Count of external labels used. */
+    int current_line_number; /* Current line number being processed. */
+    int IC; /* Instruction Counter - total number of instruction words in the program. */
+    int DC; /* Data Counter - total number of data words in the program. */
+} ProgramState;
+
 #endif
+

@@ -1,19 +1,17 @@
 /*********************************FILE__HEADER*********************************\
-* File:					macro.h
-* Author:				Daniel Brodsky			 		  												  								
-* Date:					June-2023			   								
+* File:					macro_vector.h
+* Author:				Daniel and lior 
+* Date:					July-2023			   								
 * Description:			
 \******************************************************************************/
+#ifndef MAMAN14_MACRO_VECTOR_H
+#define MAMAN14_MACRO_VECTOR_H
+#define INITIAL_CAPACITY 4
 
-/******************************** Header Files ********************************/
+#include <stdio.h>
+#include <stdlib.h>
 
-/***************************** Global Definitions *****************************/
-
-/************************* Functions  Implementations *************************/
-
-/******************************************************************************/
-#ifndef MAMAN14_MACRO_H
-#define MAMAN14_MACRO_H
+#include "utils.h"
 
 typedef struct {
     char **commands;
