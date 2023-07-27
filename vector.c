@@ -16,20 +16,22 @@ Vector *new_vector() {
     return v;
 }
 
-void push_back(Vector *v, char *value) {
-    char **new_items = NULL;
+void push_back(Vector *v, void *value) {
+    void **new_items = NULL;
     if (v->size == v->capacity) {
         v->capacity *= 2;
-        new_items = realloc(v->items, sizeof(char *) * v->capacity);
+        new_items = realloc(v->items, sizeof(void *) * v->capacity);
         if (new_items == NULL) {
             fprintf(stderr, "Error reallocating memory\n");
+            /* Handle the error condition appropriately (e.g., return an error code) */
             return;
         }
         v->items = new_items;
     }
-
-    v->items[v->size++] = my_strdup(value);
+    v->items[v->size++] = value;
 }
+
+
 
 void free_vector(Vector *v) {
     int i;
@@ -39,3 +41,4 @@ void free_vector(Vector *v) {
     free(v->items);
     free(v);
 }
+

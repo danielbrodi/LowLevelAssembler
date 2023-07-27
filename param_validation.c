@@ -11,6 +11,7 @@ int isNumber(const char *str) {
     }
     return 1;
 }
+
 /******************************************************************************/
 int isRegister(const char *str) {
     const char *operand = NULL;
@@ -27,11 +28,15 @@ int isRegister(const char *str) {
     }
     return 0;
 }
+
 /******************************************************************************/
 int isLabel(const char *str, ProgramState *programState) {
     int i;
-    for (i = 0; i < programState->label_count; i++) {
-        if (strcmp(str, programState->labels[i].name) == 0) {
+    Label *labelPtr;
+
+    for (i = 0; i < programState->labels->size; i++) {
+        labelPtr = (Label *) programState->labels->items[i];
+        if (strcmp(str, labelPtr->name) == 0) {
             return 1;
         }
     }
@@ -40,10 +45,15 @@ int isLabel(const char *str, ProgramState *programState) {
 
 /******************************************************************************/
 Boolean isLabelExists(char *label, ProgramState *programState) {
-    if (isLabel(label, programState)) {
-        if (!programState->labels[getLabelIndex(label,
-                                                programState)].isExtern) {
-            return TRUE;
+    int i;
+    Label *labelPtr;
+
+    for (i = 0; i < programState->labels->size; i++) {
+        labelPtr = (Label *) programState->labels->items[i];
+        if (strcmp(label, labelPtr->name) == 0) {
+            if (!labelPtr->isExtern) {
+                return TRUE;
+            }
         }
     }
     return FALSE;
@@ -52,13 +62,17 @@ Boolean isLabelExists(char *label, ProgramState *programState) {
 /******************************************************************************/
 int getLabelIndex(const char *str, ProgramState *programState) {
     int i;
-    for (i = 0; i < programState->label_count; i++) {
-        if (strcmp(str, programState->labels[i].name) == 0) {
+    Label *labelPtr;
+
+    for (i = 0; i < programState->labels->size; i++) {
+        labelPtr = (Label *) programState->labels->items[i];
+        if (strcmp(str, labelPtr->name) == 0) {
             return i;
         }
     }
     return -1;
 }
+
 /******************************************************************************/
 int findInstruction(const char *instruction) {
     int instructionIdx;
@@ -95,6 +109,7 @@ int findCommand(char *command) {
     }
     return -1;
 }
+
 /******************************************************************************/
 int isValidParam(char *param, OperandType expectedType,
                  ProgramState *programState) {
@@ -117,6 +132,7 @@ int isValidParam(char *param, OperandType expectedType,
             return 0;
     }
 }
+
 /******************************************************************************/
 int findParameterType(char *operand, ProgramState *programState) {
     ProgramState *currentProgramState = programState;

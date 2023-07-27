@@ -9,6 +9,8 @@
 #ifndef MAMAN14_PROGRAM_CONSTANTS_H
 #define MAMAN14_PROGRAM_CONSTANTS_H
 
+#include "vector.h"
+
 /* Maximum length and number of lines and labels */
 #define MAX_LINE_LENGTH 80
 #define MAX_LABEL_LENGTH 32
@@ -153,8 +155,8 @@ typedef enum {
 /******************* Data Structures and Type Definitions ******************(**/
 /* Struct defining the program's state. */
 typedef struct {
-    Label *labels; /* Pointer to the dynamically allocated array of labels used in the program. */
-    Label *externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
+    Vector *labels; /* Pointer to the dynamically allocated array of labels used in the program. */
+    Vector *externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
     int label_count; /* Count of labels used. */
     int externalLabel_count; /* Count of external labels used. */
     int current_line_number; /* Current line number being processed. */

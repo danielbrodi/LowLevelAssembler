@@ -1,8 +1,9 @@
 #include "macro_processing.h"
 
-Status preProcess(const char *input_file, const char *output_file, ProgramState *programState) {
+Status preProcess(const char *input_file, const char *output_file,
+                  ProgramState *programState) {
     Status ret = SUCCESS;
-    int i, count_line = 0; 
+    int i, count_line = 0;
     char line[1024];
     char *ptr = NULL, *newline = NULL, *end = NULL;
     FILE *inputFile = NULL, *outputFile = NULL;
@@ -46,16 +47,19 @@ Status preProcess(const char *input_file, const char *output_file, ProgramState 
             *(end + 1) = '\0';
 
             if (!isReservedKeyword(ptr, programState)) {
-                if (!isValidMacroDefinition(line)) {  /*Check validity of entire line*/
-                    fprintf(stderr, "Error: Invalid macro definition '%s' on line %d.\n", line, count_line);
+                if (!isValidMacroDefinition(
+                        line)) {  /*Check validity of entire line*/
+                    fprintf(stderr,
+                            "Error: Invalid macro definition '%s' on line %d.\n",
+                            line, count_line);
                     ret = FAILURE;
-                }
-                else {
+                } else {
                     currentMacro = new_macro(ptr);
                     push_back_macro(macroVector, currentMacro);
                 }
             } else {
-                fprintf(stderr, "Error: Invalid macro name '%s' on line %d.\n", ptr, count_line);
+                fprintf(stderr, "Error: Invalid macro name '%s' on line %d.\n",
+                        ptr, count_line);
                 ret = FAILURE;
             }
         } else if (strncmp(ptr, "endmcro", 7) == 0) {
@@ -64,7 +68,9 @@ Status preProcess(const char *input_file, const char *output_file, ProgramState 
                 ptr++;
             }
             if (*ptr != '\0' && *ptr != '\n' && *ptr != '\r') {
-                fprintf(stderr, "Error: Unexpected characters after 'endmcro' on line %d.\n", count_line);
+                fprintf(stderr,
+                        "Error: Unexpected characters after 'endmcro' on line %d.\n",
+                        count_line);
                 ret = FAILURE;
             }
             currentMacro = NULL;
@@ -75,7 +81,6 @@ Status preProcess(const char *input_file, const char *output_file, ProgramState 
                 command[length - 1] = '\0';
             }
             push_back(currentMacro->commands, command);
-            free(command);
         }
     }
 
@@ -83,64 +88,68 @@ Status preProcess(const char *input_file, const char *output_file, ProgramState 
     rewind(inputFile);
 
 /* Second pass: output the file, expanding macros */
-while (fgets(line, sizeof(line), inputFile)) {
-    if (1 == filter_line(line)) {
-        continue;
-    }
-    ptr = line;
-    /* Skip leading whitespaces */
-    while (isspace((unsigned char) *ptr)) {
-        ptr++;
-    }
-
-    /* Remove the newline at the end of the line, if present */
-    newline = strchr(ptr, '\n');
-    if (newline) {
-        *newline = '\0';
-    }
-
-    /* If the line starts with a macro definition or end of macro, skip it */
-    if (strncmp(ptr, "mcro", 4) == 0) {
-        do {
-            fgets(line, sizeof(line), inputFile);
-            ptr = line;
-            while (isspace((unsigned char) *ptr)) {
-                ptr++;
-            }
-            newline = strchr(ptr, '\n');
-            if (newline) {
-                *newline = '\0';
-            }
-        } while (strncmp(ptr, "endmcro", 7) != 0);
-        continue;
-    }
-
-    macroToExpand = NULL;
-    for (i = 0; i < macroVector->size; ++i) {
-        /* If the line starts with a macro invocation, expand it */
-        if (strcmp(ptr, macroVector->macros[i]->name) == 0) {
-            macroToExpand = macroVector->macros[i];
-            break;
+    while (fgets(line, sizeof(line), inputFile)) {
+        if (1 == filter_line(line)) {
+            continue;
         }
-    }
+        ptr = line;
+        /* Skip leading whitespaces */
+        while (isspace((unsigned char) *ptr)) {
+            ptr++;
+        }
 
-    if (macroToExpand) {
-        /* Expand the macro */
-        for (i = 0; i < macroToExpand->commands->size; ++i) {
-            char *expandedLine = macroToExpand->commands->items[i];
-            /* Remove leading spaces from expanded line */
-            while (isspace((unsigned char) *expandedLine)) {
-                expandedLine++;
+        /* Remove the newline at the end of the line, if present */
+        newline = strchr(ptr, '\n');
+        if (newline) {
+            *newline = '\0';
+        }
+
+        /* If the line starts with a macro definition or end of macro, skip it */
+        if (strncmp(ptr, "mcro", 4) == 0) {
+            do {
+                fgets(line, sizeof(line), inputFile);
+                ptr = line;
+                while (isspace((unsigned char) *ptr)) {
+                    ptr++;
+                }
+                newline = strchr(ptr, '\n');
+                if (newline) {
+                    *newline = '\0';
+                }
+            } while (strncmp(ptr, "endmcro", 7) != 0);
+            continue;
+        }
+
+        macroToExpand = NULL;
+        for (i = 0; i < macroVector->size; ++i) {
+            /* If the line starts with a macro invocation, expand it */
+            if (strncmp(ptr, macroVector->macros[i]->name,
+                        strlen(macroVector->macros[i]->name)) == 0 &&
+                (ptr[strlen(macroVector->macros[i]->name)] == ' ' ||
+                 ptr[strlen(macroVector->macros[i]->name)] == '\n' ||
+                 ptr[strlen(macroVector->macros[i]->name)] == '\0')) {
+                macroToExpand = macroVector->macros[i];
+                break;
             }
-            fputs(expandedLine, outputFile);
+        }
+
+        if (macroToExpand) {
+            /* Expand the macro */
+            for (i = 0; i < macroToExpand->commands->size; ++i) {
+                char *expandedLine = macroToExpand->commands->items[i];
+                /* Remove leading spaces from expanded line */
+                while (isspace((unsigned char) *expandedLine)) {
+                    expandedLine++;
+                }
+                fputs(expandedLine, outputFile);
+                fputs("\n", outputFile);
+            }
+        } else {
+            /* Otherwise, write the line to the output as is */
+            fputs(ptr, outputFile);
             fputs("\n", outputFile);
         }
-    } else {
-        /* Otherwise, write the line to the output as is */
-        fputs(ptr, outputFile);
-        fputs("\n", outputFile);
     }
-}
 
 
     fclose(inputFile);
@@ -153,6 +162,7 @@ while (fgets(line, sizeof(line), inputFile)) {
 
     return ret;
 }
+
 /******************************************************************************/
 int isReservedKeyword(char *word, ProgramState *programState) {
     if (findCommand(word) != -1) {

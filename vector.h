@@ -20,13 +20,13 @@
 #define INITIAL_CAPACITY 4
 
 typedef struct {
-    char **items;
+    void **items;
     int size;
     int capacity;
 } Vector;
 
 Vector *new_vector();
-void push_back(Vector *v, char *value);
+void push_back(Vector *v, void *value);
 void free_vector(Vector *v);
 
 #endif

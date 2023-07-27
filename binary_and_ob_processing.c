@@ -8,7 +8,9 @@ void printBinary(int value, int numBits, FILE *outputFile) {
         fprintf(outputFile, "%d", bit);
     }
 }
-void printBinaryCommand(int commandNum, int firstParamType, int secondParamType, FILE *outputFile) {
+
+void printBinaryCommand(int commandNum, int firstParamType, int secondParamType,
+                        FILE *outputFile) {
     /* Print the last 3 bits for the first parameter type */
     printBinary(firstParamType, 3, outputFile);
 
@@ -23,6 +25,7 @@ void printBinaryCommand(int commandNum, int firstParamType, int secondParamType,
 
     fprintf(outputFile, "\n");
 }
+
 void printBinaryPrameterInteger(int number, FILE *outputFile) {
     /* Check if the number is negative*/
     if (number < 0) {
@@ -36,7 +39,9 @@ void printBinaryPrameterInteger(int number, FILE *outputFile) {
     fprintf(outputFile, "00");
     fprintf(outputFile, "\n");
 }
-void printBinaryPrameterRegister(int sourceOperand, int targetOperand, FILE *outputFile) {
+
+void printBinaryPrameterRegister(int sourceOperand, int targetOperand,
+                                 FILE *outputFile) {
     /*Print the next 5 bits for the source operand*/
     printBinary(sourceOperand, 5, outputFile);
 
@@ -48,17 +53,19 @@ void printBinaryPrameterRegister(int sourceOperand, int targetOperand, FILE *out
 
     fprintf(outputFile, "\n");
 }
+
 void printBinaryrPameterLabelEntry(int labelCode, FILE *outputFile) {
 
     /*Print the next 10 bits for the label code*/
     printBinary(labelCode, 10, outputFile);
-    
+
     /*Print the first 2 bits as "10"*/
     fprintf(outputFile, "10");
-    
+
     fprintf(outputFile, "\n");
 
 }
+
 void printBinaryrPameterLabelExtern(FILE *outputFile) {
     /*Print the first 10 bits as "0"*/
     fprintf(outputFile, "0000000000");
@@ -68,6 +75,7 @@ void printBinaryrPameterLabelExtern(FILE *outputFile) {
 
     fprintf(outputFile, "\n");
 }
+
 void printBinaryString(const char *str, FILE *outputFile) {
     int i = 0;
     int j = 0;
@@ -85,6 +93,7 @@ void printBinaryString(const char *str, FILE *outputFile) {
     }
     fprintf(outputFile, "\n");
 }
+
 void printBinaryDataPrameter(int number, FILE *outputFile) {
     /* Check if the number is negative*/
     if (number < 0) {
@@ -95,6 +104,7 @@ void printBinaryDataPrameter(int number, FILE *outputFile) {
     printBinary(number, 12, outputFile);
     fprintf(outputFile, "\n");
 }
+
 /* Function to convert binary to decimal */
 int binaryToDecimal(char *binary) {
     int decimal = 0;
@@ -121,8 +131,9 @@ char decimalToBase64(int decimal) {
     else
         return '/';
 }
-void binaryToBase64(const char *input_file, const char *output_file, int IC, int DC) 
-{
+
+void binaryToBase64(const char *input_file, const char *output_file, int IC,
+                    int DC) {
     FILE *inputFile = NULL, *outputFile = NULL;
     char buffer[13];  /* Buffer to store binary digits (12 + '\0') */
     char word1[7];
@@ -175,8 +186,8 @@ void binaryToBase64(const char *input_file, const char *output_file, int IC, int
     fclose(inputFile);
     fclose(outputFile);
 }
-Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) 
-{
+
+Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
     int i;
     char *command = line->input_words[line->has_label];
     int commandIdx = findCommand(command);
@@ -190,6 +201,7 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState)
     int expectedParamCount = -1;
     int first_register_id = -1;
     int second_register_id = -1;
+    Label *label = NULL;
     ProgramState *currentProgramState = programState;
 
     if (commandIdx != -1) {
@@ -285,11 +297,12 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState)
                     if (isLabel(paramWords[i], currentProgramState)) {
                         labelIdx = getLabelIndex(paramWords[i],
                                                  currentProgramState);
-                        if (currentProgramState->labels[labelIdx].isExtern) {
+                        label = (Label *) programState->labels->items[labelIdx];
+                        if (label->isExtern) {
                             printBinaryrPameterLabelExtern(bin_fp);
                         } else {
                             printBinaryrPameterLabelEntry(
-                                    currentProgramState->labels[labelIdx].asm_line_number,
+                                    label->asm_line_number,
                                     bin_fp);
                         }
                     } else {
@@ -340,14 +353,13 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState)
                     return FAILURE;
                 } else {
                     /* Mark the label as an entry */
-                    currentProgramState->labels[getLabelIndex(
+                    label = (Label *) programState->labels->items[getLabelIndex(
                             line->input_words[line->has_label +
                                               1],
-                            currentProgramState)].isEntry = 1;
+                            currentProgramState)];
+                    label->isEntry = 1;
                 }
-            }
-                /* For extern, the label must not exist */
-            else if (instructionIdx == EXTERN_INSTRUCTION) {
+            } else if (instructionIdx == EXTERN_INSTRUCTION) {
                 if (isLabelExists(line->input_words[1 + line->has_label],
                                   currentProgramState)) {
                     PrintLabelErrorMessage(line->line_number,
@@ -357,10 +369,11 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState)
                     return FAILURE;
                 } else {
                     /* Mark the label as an entry */
-                    currentProgramState->labels[getLabelIndex(
+                    label = (Label *) programState->labels->items[getLabelIndex(
                             line->input_words[line->has_label +
                                               1],
-                            currentProgramState)].isExtern = 1;
+                            currentProgramState)];
+                    label->isExtern = 1;
                 }
             }
         }
@@ -386,12 +399,12 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState)
     }
 
     /* If there's a label, validate it */
-     /*if (line->has_label) {
-        if (!isLabel(line->input_words[0], currentProgramState)) {
-            PrintLabelErrorMessage(line->line_number, LABEL_DOES_NOT_EXIST,
-                                   line->input_words[0]);
-            return FAILURE;
-        }
-    }*/
+    /*if (line->has_label) {
+       if (!isLabel(line->input_words[0], currentProgramState)) {
+           PrintLabelErrorMessage(line->line_number, LABEL_DOES_NOT_EXIST,
+                                  line->input_words[0]);
+           return FAILURE;
+       }
+   }*/
     return SUCCESS;
 }

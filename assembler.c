@@ -16,15 +16,16 @@
 #include "binary_and_ob_processing.h"
 void freeProgramState(ProgramState *programState) {
     if (programState->labels != NULL) {
-        free(programState->labels);
-        programState->labels = NULL; /*Set the pointer to NULL to avoid dangling pointer*/
+        free_vector(programState->labels);
+        programState->labels = NULL; /* Set the pointer to NULL to avoid dangling pointer */
     }
 
     if (programState->externalLabels != NULL) {
-        free(programState->externalLabels);
-        programState->externalLabels = NULL; /*Set the pointer to NULL to avoid dangling pointer*/
+        free_vector(programState->externalLabels);
+        programState->externalLabels = NULL; /* Set the pointer to NULL to avoid dangling pointer */
     }
 }
+
 /******************************* Main  Function *******************************/
 int main(int argc, char *argv[]) {
     ProgramState programState;
@@ -71,8 +72,10 @@ int main(int argc, char *argv[]) {
         }
 
         /* reset program state settings */
-        programState.labels = NULL;         /* Initialize labels pointer to NULL */
-        programState.externalLabels = NULL; /* Initialize externalLabels pointer to NULL */
+        programState.labels = new_vector();         /* Initialize labels vector using new_vector() */
+
+        programState.externalLabels = new_vector(); /* Initialize externalLabels vector using new_vector() */
+
         programState.label_count = 0;       /* Initialize other members as needed */
         programState.IC = 0;
         programState.DC = 0;

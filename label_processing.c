@@ -7,6 +7,7 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
     char new_label[MAX_LABEL_LENGTH] = {0};
     char *label_end = NULL;
     int label_length = -1;
+    Label *newLabel = NULL;
     Status ret = SUCCESS;
 
     FILE *file = fopen(am_file_name, "r");
@@ -42,38 +43,38 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
                     PrintLabelErrorMessage(line_number,
                                            LABEL_IS_RESERVED_COMMAND_WORD,
                                            new_label);
-                ret = FAILURE;
+                    ret = FAILURE;
                 }
             }
-      if (new_label[0] == '.') {
-	    strcpy(new_label, new_label + 1);
-	    for (i = 0; i < instructionsListSize; i++) {
-                if (strcmp(new_label, instructionsList[i]) == 0) {
-                    PrintLabelErrorMessage(line_number,
-                                           LABEL_IS_RESERVED_INSTRUCTION_WORD,
-                                           new_label);
-                ret = FAILURE;
+            if (new_label[0] == '.') {
+                strcpy(new_label, new_label + 1);
+                for (i = 0; i < instructionsListSize; i++) {
+                    if (strcmp(new_label, instructionsList[i]) == 0) {
+                        PrintLabelErrorMessage(line_number,
+                                               LABEL_IS_RESERVED_INSTRUCTION_WORD,
+                                               new_label);
+                        ret = FAILURE;
+                    }
                 }
             }
-       }
-       if (new_label[0] == '@') {
-	    strcpy(new_label, new_label + 1);
-            for (i = 0; i < registersListSize; i++) {
-                if (strcmp(new_label, registersList[i]) == 0) {
-                    PrintLabelErrorMessage(line_number,
-                                           LABEL_IS_RESERVED_REGISTER_WORD,
-                                           new_label);
-                ret = FAILURE;
+            if (new_label[0] == '@') {
+                strcpy(new_label, new_label + 1);
+                for (i = 0; i < registersListSize; i++) {
+                    if (strcmp(new_label, registersList[i]) == 0) {
+                        PrintLabelErrorMessage(line_number,
+                                               LABEL_IS_RESERVED_REGISTER_WORD,
+                                               new_label);
+                        ret = FAILURE;
+                    }
                 }
             }
-        }
-      
+
             /* Check if label contains spaces */
             for (i = 0; i < label_length; i++) {
                 if (isspace(line[i])) {
                     PrintLabelErrorMessage(line_number, INVALID_LABEL_FORMAT,
                                            new_label);
-                ret = FAILURE;
+                    ret = FAILURE;
                 }
             }
 
@@ -87,27 +88,20 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
             /* Check for duplicate labels */
             strncpy(new_label, line, label_length);
             new_label[label_length] = '\0';
-            for (i = 0; i < programState->label_count; i++) {
-                if (strcmp(new_label, programState->labels[i].name) == 0) {
+            for (i = 0; i < programState->labels->size; i++) {
+                Label *existingLabel = (Label *) programState->labels->items[i];
+                if (strcmp(new_label, existingLabel->name) == 0) {
                     PrintLabelErrorMessage(line_number, DUPLICATE_LABEL,
                                            new_label);
-                ret = FAILURE;
+                    ret = FAILURE;
                 }
             }
-
-        /* Copy label to dynamically allocated labels array */
-        programState->labels = realloc(programState->labels, (programState->label_count + 1) * sizeof(Label));
-        if (programState->labels == NULL) {
-            /*Handle memory allocation error*/
-            fclose(file);
-            return FAILURE;
-        }
-
-        strncpy(programState->labels[programState->label_count].name, new_label, label_length + 1);
-        programState->labels[programState->label_count].line_number = line_number;
-        programState->labels[programState->label_count].isEntry = 0;
-        programState->labels[programState->label_count].isExtern = 0;
-        programState->label_count++;
+            newLabel = malloc(sizeof(Label));
+            strncpy(newLabel->name, new_label, label_length + 1);
+            newLabel->line_number = line_number;
+            newLabel->isEntry = 0;
+            newLabel->isExtern = 0;
+            push_back(programState->labels, newLabel);
         } else {
             /* Check if line starts with an 'extern' instruction */
             if (startsWith(line, ".extern")) {
@@ -126,43 +120,29 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
                 new_label[label_length] = '\0';
 
                 /* Check for duplicate labels */
-                for (i = 0; i < programState->label_count; i++) {
-                    if (strcmp(new_label, programState->labels[i].name) == 0) {
+                for (i = 0; i < programState->labels->size; i++) {
+                    Label *existingLabel = programState->labels->items[i];
+                    if (strcmp(new_label, existingLabel->name) == 0) {
                         PrintLabelErrorMessage(line_number, DUPLICATE_LABEL,
                                                new_label);
-                ret = FAILURE;
+                        ret = FAILURE;
                     }
                 }
-                
-                 /* Copy label to dynamically allocated labels array */
-        programState->labels = realloc(programState->labels, (programState->label_count + 1) * sizeof(Label));
-        if (programState->labels == NULL) {
-            /*Handle memory allocation error*/
-            fclose(file);
-            return FAILURE;
-        }
 
-        strncpy(programState->labels[programState->label_count].name, new_label, label_length + 1);
-        programState->labels[programState->label_count].line_number = -1; /* No line number for extern labels */
-        programState->labels[programState->label_count].isEntry = 0;
-        programState->labels[programState->label_count].isExtern = 1;
-        programState->label_count++;
+                newLabel = malloc(sizeof(Label));
+                strncpy(newLabel->name, new_label, label_length + 1);
+                newLabel->line_number = -1; /* No line number for extern labels */
+                newLabel->isEntry = 0;
+                newLabel->isExtern = 1;
+                push_back(programState->labels, newLabel);
             }
         }
     }
 
     fclose(file);
-
-    /*
-     for (i = 0; i < programState->label_count; i++) {
-        printf("this is label %d: %s in line: %d\n", i,
-               programState->labels[i].name,
-               programState->labels[i].line_number);
-    }
-    */
-
     return ret;
 }
+
 /******************************************************************************/
 void UpdateLines(char *words[], int num_of_words, int has_label,
                  ProgramState *programState) {
@@ -171,6 +151,7 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
     int i, commandIdx, commandOrderInWords, operandIdx;
     char *command;
     int labelIdx;
+    Label *label = NULL;
 
     if (has_label) {
         commandOrderInWords = 1;
@@ -182,9 +163,10 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
     commandIdx = findCommand(command);
 
     if (has_label) {
-        for (i = 0; i < currentProgramState->label_count; i++) {
-            if (strcmp(words[0], currentProgramState->labels[i].name) == 0) {
-                currentProgramState->labels[i].asm_line_number = currentProgramState->current_line_number;
+        for (i = 0; i < currentProgramState->labels->size; i++) {
+            label = (Label *) currentProgramState->labels->items[i];
+            if (strcmp(words[0], label->name) == 0) {
+                label->asm_line_number = currentProgramState->current_line_number;
                 break;
             }
         }
@@ -197,7 +179,8 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
             if (isLabel(words[operandIdx], currentProgramState)) {
                 labelIdx = getLabelIndex(words[operandIdx],
                                          currentProgramState);
-                if (currentProgramState->labels[labelIdx].isExtern) {
+                label = (Label *) currentProgramState->labels->items[labelIdx];
+                if (label->isExtern) {
                     if (has_label) {
                         if (operandIdx == 2) {
                             addExternalLabel(labelIdx,
@@ -246,16 +229,17 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
         }
     }
 }
+
 /******************************************************************************/
 void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
                        ProgramState *programState) {
     int i = 0;
     FILE *entry_fp = NULL;
     FILE *extern_fp = NULL;
-
+    Label *externalLabel = NULL;
     ProgramState *currentProgramState = programState;
 
-    for (i = 0; i < currentProgramState->externalLabel_count; i++) {
+    for (i = 0; i < currentProgramState->externalLabels->size; i++) {
         if (extern_fp == NULL) {
             extern_fp = fopen(ext_filename, "w");
             if (extern_fp == NULL) {
@@ -264,13 +248,15 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
                 return;
             }
         }
+        externalLabel = (Label *) currentProgramState->externalLabels->items[i];
         fprintf(extern_fp, "%s %d\n",
-                currentProgramState->externalLabels[i].name,
-                currentProgramState->externalLabels[i].asm_line_number);
+                externalLabel->name,
+                externalLabel->asm_line_number);
     }
 
-    for (i = 0; i < currentProgramState->label_count; i++) {
-        if (currentProgramState->labels[i].isEntry) {
+    for (i = 0; i < currentProgramState->labels->size; i++) {
+        Label *label = (Label *) currentProgramState->labels->items[i];
+        if (label->isEntry) {
             if (entry_fp == NULL) {
                 entry_fp = fopen(ent_filename, "w");
                 if (entry_fp == NULL) {
@@ -283,8 +269,8 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
                     return;
                 }
             }
-            fprintf(entry_fp, "%s %d\n", currentProgramState->labels[i].name,
-                    currentProgramState->labels[i].asm_line_number);
+            fprintf(entry_fp, "%s %d\n", label->name,
+                    label->asm_line_number);
         }
     }
 
@@ -295,32 +281,28 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,
         fclose(extern_fp);
     }
 }
-/******************************************************************************/
-void addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState) {
-    ProgramState *currentProgramState = programState;
-    
-    /* Dynamically allocate memory for the externalLabels array if it hasn't been allocated yet */
-    if (currentProgramState->externalLabels == NULL) {
-        currentProgramState->externalLabels = malloc(sizeof(Label));
-        if (currentProgramState->externalLabels == NULL) {
-            /* Handle memory allocation error */
-            return;
-        }
-    } else {
-        /* Resize the externalLabels array to accommodate the new label */
-        Label* temp = realloc(currentProgramState->externalLabels, (currentProgramState->externalLabel_count + 1) * sizeof(Label));
-        if (temp == NULL) {
-            /* Handle memory reallocation error */
-            return;
-        }
-        currentProgramState->externalLabels = temp;
-    }
 
-    /* Add the label index to the next position in the externalLabels array */
-    currentProgramState->externalLabels[currentProgramState->externalLabel_count] = currentProgramState->labels[labelIdx];
-    /* Add the line number to the lineNumber field */
-    currentProgramState->externalLabels[currentProgramState->externalLabel_count].asm_line_number = lineNumber;
-    /* Increment the counter for the next call */
-    currentProgramState->externalLabel_count++;
+/******************************************************************************/
+void
+addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState) {
+    Label *newLabel;
+
+    /* Copy the label to a new label object */
+    newLabel = malloc(sizeof(Label));
+    if (newLabel == NULL) {
+        /* Handle memory allocation error */
+        return;
+    }
+    /* Copy the data from the existing label in the vector to the new label */
+    memcpy(newLabel, programState->labels->items[labelIdx], sizeof(Label));
+
+    /* Update the line number */
+    newLabel->asm_line_number = lineNumber;
+
+    /* Add the new label to the vector */
+    push_back(programState->externalLabels, newLabel);
+
+    /* Increment the external label count */
+    programState->externalLabel_count++;
 }
 /******************************************************************************/
