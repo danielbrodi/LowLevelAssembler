@@ -323,8 +323,5 @@ addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState) {
 
     /* Add the new label to the vector */
     push_back(programState->externalLabels, newLabel);
-
-    /* Increment the external label count */
-    programState->externalLabel_count++;
 }
 /******************************************************************************/

@@ -157,8 +157,6 @@ typedef enum {
 typedef struct {
     Vector *labels; /* Pointer to the dynamically allocated array of labels used in the program. */
     Vector *externalLabels;/* Pointer to the dynamically allocated array of external labels used in the program. */
-    int label_count; /* Count of labels used. */
-    int externalLabel_count; /* Count of external labels used. */
     int current_line_number; /* Current line number being processed. */
     int IC; /* Instruction Counter - total number of instruction words in the program. */
     int DC; /* Data Counter - total number of data words in the program. */
