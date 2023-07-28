@@ -85,15 +85,11 @@ int findInstruction(const char *instruction) {
 
     for (instructionIdx = 0;
          instructionIdx < instructionsListSize; instructionIdx++) {
-        /* printf("Debug: Comparing '%s' and '%s'\n", comparisonInstruction,
-               instructionsList[instructionIdx]); */
         if (strcmp(comparisonInstruction, instructionsList[instructionIdx]) ==
             0) {
-            /* printf("Debug: Found instruction '%s'\n", comparisonInstruction); */
             return instructionIdx;
         }
     }
-    /* printf("Debug: Instruction '%s' not found\n", comparisonInstruction); */
     return -1;
 }
 
@@ -137,10 +133,7 @@ int isValidParam(char *param, OperandType expectedType,
 int findParameterType(char *operand, ProgramState *programState) {
     ProgramState *currentProgramState = programState;
     if (isNumber(operand)) {
-        /*
-        printf("Checking if %s is a number and the answer is %d.\n", operand,
-               isNumber(operand));
-               */
+
         return NUMBER;
     } else if (isLabel(operand, currentProgramState)) {
         return LABEL;

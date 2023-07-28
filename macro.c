@@ -1,18 +1,4 @@
-/*********************************FILE__HEADER*********************************\
-* File:					macro.c
-* Author:				Daniel Brodsky			 		  												  								
-* Date:					July-2023			   								
-* Description:			
-\******************************************************************************/
-
-/******************************** Header Files ********************************/
-
-/***************************** Global Definitions *****************************/
-
-/************************* Functions  Implementations *************************/
-
 #include "macro.h"
-#include "utils.h" /* my_strdup */
 
 MacroVector *new_macro_vector() {
     MacroVector *mv = malloc(sizeof(MacroVector));

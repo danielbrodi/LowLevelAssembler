@@ -176,10 +176,6 @@ void binaryToBase64(const char *input_file, const char *output_file, int IC,
         fputc(base64_1, outputFile);
         fputc(base64_2, outputFile);
         fputc('\n', outputFile);
-        /* Print the binary words, decimal values, and base64 characters */
-        /*printf("Binary: %s %s \t Decimal: %d %d \t Base64: %c %c\n", word1,
-               word2, decimal1, decimal2, base64_1, base64_2);*/
-
     }
 
     /* Close the files */
@@ -328,12 +324,9 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
         }
     } else if (instructionIdx != -1) {
         /* It's an instruction */
-        /* printf("Debug: Processing instruction '%s'\n", words[has_label]); */
         if (instructionIdx == ENTRY_INSTRUCTION ||
             instructionIdx == EXTERN_INSTRUCTION) {
             /* For entry and extern, there should only be one parameter */
-            /* printf("Debug: num_of_words = %d, has_label = %d, label = '%s'\n",
-                   num_of_words, has_label, words[1 + has_label]);*/
             if (line->num_of_words - 1 - line->has_label != 1) {
                 PrintCommandInstructionErrorMessage(line->line_number,
                                                     INCORRECT_NUM_OF_PARAMS_FOR_INSTRUCTION,
@@ -344,8 +337,6 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
             if (instructionIdx == ENTRY_INSTRUCTION) {
                 if (!isLabelExists(line->input_words[1 + line->has_label],
                                    currentProgramState)) {
-                    printf("Error: entry requires label that exists but Label '%s' does not exist\n",
-                           line->input_words[1 + line->has_label]);
                     PrintLabelErrorMessage(line->line_number,
                                            ENTRY_REQUIRES_EXISTING_LABEL,
                                            line->input_words[1 +
@@ -379,12 +370,24 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
         }
         switch (instructionIdx) {
             case STRING_INSTRUCTION:
+                if (line->num_of_words - line->has_label != 2) {
+                    PrintCommandInstructionErrorMessage(line->line_number,
+                                                        INCORRECT_NUM_OF_PARAMS_FOR_INSTRUCTION,
+                                                        command, NULL);
+                    return FAILURE;
+                }
                 currentProgramState->DC +=
                         strlen(line->input_words[line->has_label + 1]) + 1;
                 printBinaryString(line->input_words[line->has_label + 1],
                                   bin_fp);
                 break;
             case DATA_INSTRUCTION:
+                if (line->num_of_words - line->has_label < 2) {
+                    PrintCommandInstructionErrorMessage(line->line_number,
+                                                        INCORRECT_NUM_OF_PARAMS_FOR_INSTRUCTION,
+                                                        command, NULL);
+                    return FAILURE;
+                }
                 currentProgramState->DC +=
                         line->num_of_words - line->has_label - 1;
                 for (i = line->has_label + 1; i < line->num_of_words; i++) {
@@ -397,14 +400,5 @@ Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
                                             NOT_VALID_COMMAND_OR_INSTRUCTION,
                                             command, NULL);
     }
-
-    /* If there's a label, validate it */
-    /*if (line->has_label) {
-       if (!isLabel(line->input_words[0], currentProgramState)) {
-           PrintLabelErrorMessage(line->line_number, LABEL_DOES_NOT_EXIST,
-                                  line->input_words[0]);
-           return FAILURE;
-       }
-   }*/
     return SUCCESS;
 }

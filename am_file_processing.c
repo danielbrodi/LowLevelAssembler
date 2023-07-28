@@ -1,11 +1,12 @@
 #include "am_file_processing.h"
 
-Status ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
+Status
+ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {
     Status ret = SUCCESS;
     FILE *file = NULL;
     char buffer[80];
     char *input_words[80];
-    Line *first_line = NULL, *current_line = NULL, *new_line = NULL, *line = NULL;
+    Line *new_line = NULL;
     int line_number = 1;
     State state = -1;
     int num_of_words = 0;
@@ -185,7 +186,7 @@ Status ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programS
             ret = FAILURE;
         }
         input_words[num_of_words] = NULL;
-        ++line_number;
+
         UpdateLines(input_words, num_of_words, has_label, programState);
 
         /* allocate memory for a new line */
@@ -193,6 +194,7 @@ Status ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programS
         if (new_line == NULL) {
             printf("Failed to allocate memory\n");
             fclose(file);
+            fclose(bin_fp);
             return FAILURE;
         }
 
@@ -202,42 +204,25 @@ Status ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programS
             new_line->input_words[i] = my_strdup(input_words[i]);
         }
 
-        new_line->line_number = line_number - 1;
+        new_line->line_number = line_number;
         new_line->num_of_words = num_of_words;
         new_line->has_label = has_label;
-        new_line->next = NULL;
 
-        /* If it's the first node, it's the head */
-        if (first_line == NULL) {
-            first_line = new_line;
-            current_line = first_line;
-        } else {
-            current_line->next = new_line;
-            current_line = new_line;
+        /* process each line */
+        ret += ProcessLine(new_line, bin_fp, programState);
+
+
+        /* Free the allocated memory for input_words */
+        for (i = 0; i < new_line->num_of_words; ++i) {
+            free(new_line->input_words[i]);
         }
+        free(new_line->input_words);  /*Free the input_words array*/
+
+        free(new_line);
+        ++line_number;
     }
     fclose(file);
-
-    /* process each line */
-    line = first_line;
-    while (line != NULL) {
-        ret += ProcessLine(line, bin_fp, programState);
-        line = line->next;
-    }
     fclose(bin_fp);
 
-    /* free memory */
-    line = first_line;
-    while (line != NULL) {
-        Line *tmp = line;
-        line = line->next;
-    /* Free the allocated memory for input_words */
-    for (i = 0; i < tmp->num_of_words; ++i) {
-        free(tmp->input_words[i]);
-    } 
-    free(tmp->input_words);  /*Free the input_words array*/
-
-    free(tmp);
-    }
     return ret;
 }

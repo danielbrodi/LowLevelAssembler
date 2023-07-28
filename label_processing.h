@@ -26,6 +26,4 @@ void WriteLabelsToFile(const char *ent_filename, const char *ext_filename,Progra
 
 void addExternalLabel(int labelIdx, int lineNumber, ProgramState *programState);
 
-
-
 #endif

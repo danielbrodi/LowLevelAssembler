@@ -1,14 +1,12 @@
-MAIN: mov @r3 LENGTH,
+MAIN: mov @r3 LENGTH
 LOOP: jmp , L1   
-sub @r1,, @r4    
-bne END    
 prn -5,
-bne LOOP  
-L1: inc K  
+bne LOOP
+sub @r1 ,, @r4    
+bne END    
+L1: inc K 
 bne LOOP  
 END: stop 
-STR: .string "abcdef" 
+STR: .string "abcdef"
 LENGTH: .data 6, -9 15  
-K: .data 22 
-
-
+K: .data 22

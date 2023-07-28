@@ -1,7 +1,7 @@
 #include "label_processing.h"
 
 Status checkLabels(char *am_file_name, ProgramState *programState) {
-    int i = 0;
+    int i = 0, len = 0;
     char line[MAX_LINE_LENGTH] = {0};
     int line_number = 0;
     char new_label[MAX_LABEL_LENGTH] = {0};
@@ -46,8 +46,12 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
                     ret = FAILURE;
                 }
             }
-            if (new_label[0] == '.') {
-                strcpy(new_label, new_label + 1);
+             if (new_label[0] == '.') {
+    	    /*Remove the dot from the beginning of the label by shifting the string to the left*/
+    	    len = strlen(new_label);
+            for (i = 0; i < len; i++) {
+    	    new_label[i] = new_label[i + 1];
+            }
                 for (i = 0; i < instructionsListSize; i++) {
                     if (strcmp(new_label, instructionsList[i]) == 0) {
                         PrintLabelErrorMessage(line_number,
@@ -145,7 +149,7 @@ Status checkLabels(char *am_file_name, ProgramState *programState) {
 
 /******************************************************************************/
 void UpdateLines(char *words[], int num_of_words, int has_label,
-                 ProgramState *programState) {
+            ProgramState *programState) {
     ProgramState *currentProgramState = programState;
 
     int i, commandIdx, commandOrderInWords, operandIdx;
@@ -173,6 +177,9 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
     }
 
     if (commandIdx != -1) { /* If it's a command and not an instruction */
+        if (num_of_words <= commandOrderInWords + paramCount[commandIdx]) {
+            return; /* not enough parameters for the command */
+        }
         for (operandIdx = commandOrderInWords + 1; operandIdx <=
                                                    commandOrderInWords +
                                                    paramCount[commandIdx]; operandIdx++) {
@@ -217,13 +224,28 @@ void UpdateLines(char *words[], int num_of_words, int has_label,
         }
     } else { /* It's an instruction */
         if (strcmp(command, "string") == 0) {
+            if (has_label) {
+                if (num_of_words < 3) {
+                    return; /* not enough parameters for the instruction */
+                }
+            } else {
+                if (num_of_words < 2) {
+                    return; /* not enough parameters for the instruction */
+                }
+            }
             /* Including the null character at the end of the string */
             currentProgramState->current_line_number +=
                     strlen(words[commandOrderInWords + 1]) + 1;
         } else if (strcmp(command, "data") == 0) {
             if (has_label) {
+                if (num_of_words < 3) {
+                    return; /* not enough parameters for the instruction */
+                }
                 currentProgramState->current_line_number += num_of_words - 2;
             } else {
+                if (num_of_words < 2) {
+                    return; /* not enough parameters for the instruction */
+                }
                 currentProgramState->current_line_number += num_of_words - 1;
             }
         }

@@ -4,7 +4,7 @@
 static const char *LabelErrorMessages[] = {
         "Label length exceeds limit of 80 characters.",
         "Label '%s' is a reserved command word.",
-        "Label '.%s' is a reserved instruction word!",
+        "Label '.%s' is a reserved instruction word.",
         "Label '@%s' is a reserved register word.",
         "Invalid label format for '%s'.",
         "Label must start with a letter, and the label '%s' is invalid.",

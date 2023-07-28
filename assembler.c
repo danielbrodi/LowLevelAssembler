@@ -30,7 +30,7 @@ void freeProgramState(ProgramState *programState) {
 int main(int argc, char *argv[]) {
     ProgramState programState;
     Status stages_status = SUCCESS;
-    int i = 0 /*j = 0*/;
+    int i = 0;
     FILE *file = NULL;
     size_t argLength = strlen(argv[i]);
 
@@ -42,7 +42,6 @@ int main(int argc, char *argv[]) {
         return FAILURE;
     }
     for (i = 1; i < argc; i++) {
-        /*printf("%s\n", argv[i]);*/
         /* Append extensions to the current file name */
         file_name_as = malloc(argLength + 4); /* 4 for ".as\0" */
         file_name_am = malloc(argLength + 4); /* 4 for ".am\0" */
@@ -99,13 +98,6 @@ int main(int argc, char *argv[]) {
                            programState.DC);
         }
         }
-        /*for (j = 0; j < programState.label_count; j++) {
-            printf("Label name: %s, line_number: %d, asm_line_number: %d.\n",
-                   programState.labels[j].name,
-                   programState.labels[j].line_number,
-                   programState.labels[j].asm_line_number);
-
-        }*/
 
         remove(file_name_bin);
 

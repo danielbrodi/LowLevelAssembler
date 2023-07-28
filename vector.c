@@ -15,7 +15,7 @@ Vector *new_vector() {
     v->items = malloc(sizeof(char *) * v->capacity);
     return v;
 }
-
+/******************************************************************************/
 void push_back(Vector *v, void *value) {
     void **new_items = NULL;
     if (v->size == v->capacity) {
@@ -30,9 +30,7 @@ void push_back(Vector *v, void *value) {
     }
     v->items[v->size++] = value;
 }
-
-
-
+/******************************************************************************/
 void free_vector(Vector *v) {
     int i;
     for (i = 0; i < v->size; ++i) {
@@ -41,4 +39,3 @@ void free_vector(Vector *v) {
     free(v->items);
     free(v);
 }
-

@@ -5,16 +5,11 @@
 * Description:			
 \******************************************************************************/
 
-/******************************** Header Files ********************************/
-
-/***************************** Global Definitions *****************************/
-
-/************************* Functions  Implementations *************************/
-
 #ifndef MACRO_H
 #define MACRO_H
 
 #include "vector.h"
+#include "utils.h" /* my_strdup */
 
 typedef struct {
     char *name;
