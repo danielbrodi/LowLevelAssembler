@@ -1,7 +1,8 @@
 /*********************************FILE__HEADER*********************************\
+*
 * File:					print_error.h
-* Author:				Daniel and Lior
-* Date:					June-2023
+* Author:				Daniel Brodsky & Lior Katav
+* Date:					August-2023
 * Description:			This header file includes definitions of various enums used for
 *                       identifying types of errors in our compiler. It also
 *                       declares several functions used to print error messages based on these error types.
