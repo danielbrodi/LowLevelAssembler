@@ -1,4 +1,4 @@
-/*********************************FILE__HEADER*********************************
+/*********************************FILE__HEADER*********************************\
 *
 * File:                 am_file_processing.c
 * Authors:              Daniel Brodsky & Lior Katav
