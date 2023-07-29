@@ -1,7 +1,48 @@
-#include "macro_processing.h"
+/*********************************FILE__HEADER*********************************\
+* File:                 macro_processing.c
+* Authors:              Daniel Brodsky & Lior Katav
+* Date:                 August-2023
+* Description:          This source file contains the functionality for
+*                       managing macro constructs in the our compiler program.
+*                       It implements procedures for recognizing reserved
+*                       keywords, validating macro definitions and performing
+*                       a pre-processing step on assembly language input files.
+*                       This preprocessing step identifies macro definitions,
+*                       expands macros at their invocation, and writes the
+*                       transformed code to an output file.
+*                       These routines contribute to the larger task of
+*                       parsing and interpreting the assembly language.
+\******************************************************************************/
 
+/******************************** Header Files ********************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "macro_processing.h"
+#include "macro.h"
+#include "param_validation.h"
+
+/**************************** Forward Declarations ****************************/
+int isReservedKeyword(char *word, ProgramState *programState);
+
+int isValidMacroDefinition(const char *line);
+
+/************************* Functions  Implementations *************************/
+/**
+ * Preprocesses the given input file and writes the result to the output file.
+ * Preprocessing involves expanding any macros defined in the input file.
+ *
+ * @param input_file The name of the file to preprocess.
+ * @param output_file The name of the file to write the preprocessed code to.
+ * @param programState The current state of the program.
+ *
+ * @return SUCCESS if the preprocessing is successful, FAILURE otherwise.
+ */
 Status preProcess(const char *input_file, const char *output_file,
                   ProgramState *programState) {
+    /* Variable Initializations */
     Status ret = SUCCESS;
     int i, count_line = 0;
     char line[1024];
@@ -11,6 +52,7 @@ Status preProcess(const char *input_file, const char *output_file,
     Macro *currentMacro = NULL;
     MacroVector *macroVector = new_macro_vector();
 
+    /* Open input and output files. If opening fails, return FAILURE */
     inputFile = fopen(input_file, "r");
     if (NULL == inputFile) {
         return FAILURE;
@@ -26,15 +68,17 @@ Status preProcess(const char *input_file, const char *output_file,
     /* First pass: build the list of macros */
     while (fgets(line, sizeof(line), inputFile)) {
         count_line++;
+        /* Filter out comments and empty lines */
         if (1 == filter_line(line)) {
             continue;
         }
-
+        /* Remove leading whitespaces */
         ptr = line;
         while (isspace((unsigned char) *ptr)) {
             ptr++;
         }
 
+        /* Check for macro definitions */
         if (strncmp(ptr, "mcro", 4) == 0) {
             ptr += 4;
             while (isspace((unsigned char) *ptr)) {
@@ -84,10 +128,10 @@ Status preProcess(const char *input_file, const char *output_file,
         }
     }
 
-/* Rewind the input file to the beginning for the second pass */
+    /* Rewind the input file to the beginning for the second pass */
     rewind(inputFile);
 
-/* Second pass: output the file, expanding macros */
+    /* Second pass: output the file, expanding macros */
     while (fgets(line, sizeof(line), inputFile)) {
         if (1 == filter_line(line)) {
             continue;
@@ -121,8 +165,18 @@ Status preProcess(const char *input_file, const char *output_file,
         }
 
         macroToExpand = NULL;
+        /* Iterate through all defined macros */
         for (i = 0; i < macroVector->size; ++i) {
-            /* If the line starts with a macro invocation, expand it */
+            /** If the current line starts with the name of a macro, this indicates
+             * a macro invocation. The macro name is followed by either a space,
+             * newline or null character.
+             *
+             * strncmp is used to compare the first n characters of ptr and macro name,
+             * where n is the length of the macro name. If they are equal, strncmp returns 0.
+             *
+             * If such a macro invocation is detected, the pointer macroToExpand is set to the
+             * current macro, and the loop is exited early.
+             */
             if (strncmp(ptr, macroVector->macros[i]->name,
                         strlen(macroVector->macros[i]->name)) == 0 &&
                 (ptr[strlen(macroVector->macros[i]->name)] == ' ' ||
@@ -151,7 +205,7 @@ Status preProcess(const char *input_file, const char *output_file,
         }
     }
 
-
+    /* Cleanup: Close files and free allocated memory */
     fclose(inputFile);
     fclose(outputFile);
     for (i = 0; i < macroVector->size; ++i) {
@@ -164,6 +218,18 @@ Status preProcess(const char *input_file, const char *output_file,
 }
 
 /******************************************************************************/
+/**
+ * This function checks if a given word is a reserved keyword in the assembly language.
+ *
+ * @param word - the word to be checked.
+ * @param programState - the current state of the program.
+ *
+ * @return 1 if the word is a reserved keyword; 0 otherwise.
+ *
+ * The function checks if the word is a command, an instruction, a register, or a label.
+ * If any of these checks is true, the function returns 1, indicating that the word is a reserved keyword.
+ * If none of the checks is true, the function returns 0.
+ */
 int isReservedKeyword(char *word, ProgramState *programState) {
     if (findCommand(word) != -1) {
         return 1;
@@ -181,6 +247,17 @@ int isReservedKeyword(char *word, ProgramState *programState) {
 }
 
 /******************************************************************************/
+/**
+ * This function checks if a given line is a valid macro definition in the assembly language.
+ *
+ * @param line - the line to be checked.
+ *
+ * @return 1 if the line is a valid macro definition; 0 otherwise.
+ *
+ * A valid macro definition must have exactly two space-separated words.
+ * The function counts the number of words in the line and returns 1 if there are exactly two words.
+ * If the number of words is not two, the function returns 0.
+ */
 int isValidMacroDefinition(const char *line) {
     /* A valid macro definition has 2 space-separated words */
     int words = 0;

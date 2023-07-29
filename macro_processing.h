@@ -1,28 +1,31 @@
 /*********************************FILE__HEADER*********************************\
-* File:					pre_process.h
-* Author:				Daniel and Lior 
-		 		  												  								
-* Date:					June-2023			   								
-* Description:			
+* File:					macro_processing.h
+* Author:				Daniel Brodsky & Lior Katav
+
+* Date:					August-2023
+* Description:          This file provides the declarations for the preProcess
+*                       function, which is used in macro processing in an
+*                       assembly language program. It identifies and expands
+*                       macro definitions in a given source file and writes
+*                       the processed code to an output file.
 \******************************************************************************/
+
 #ifndef MACRO_PROCESSING_H
 #define MACRO_PROCESSING_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
-#include "macro.h"
 #include "program_constants.h"
-#include "param_validation.h"
 #include "utils.h"
 
-/* File processing and parsing functions */
-Status preProcess(const char *input_file, const char *output_file, ProgramState *programState);
-
-int isValidMacroDefinition(const char *line);
-
-int isReservedKeyword(char *word, ProgramState *programState);
-
+/**
+ * This function performs a preprocessing step on an assembly language input file.
+ * It identifies and expands macro definitions and writes the transformed code to an output file.
+ *
+ * @param input_file - Path to the assembly language source file.
+ * @param output_file - Path to the file where the processed code will be written.
+ * @param programState - Current state of the program.
+ *
+ * Returns SUCCESS if preprocessing completed successfully, and FAILURE otherwise.
+ */
+Status preProcess(const char *input_file, const char *output_file,
+                  ProgramState *programState);
 #endif
