@@ -12,6 +12,8 @@
 
 /******************************** Header Files ********************************/
 #include "am_file_processing.h"
+#include "label_processing.h"
+#include "binary_and_ob_processing.h"
 
 /******************************************************************************/
 /*
