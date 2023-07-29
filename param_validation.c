@@ -1,5 +1,31 @@
+/*********************************FILE__HEADER*********************************\
+* File:                 param_validation.c
+* Authors:              Daniel Brodsky & Lior Katav
+* Date:                 August-2023
+* Description:          This file includes a suite of functions designed for
+*                       validating various parameters and operands in an
+*                       assembly language program, such as labels, registers,
+*                       numbers, and instructions. It provides checks for the
+*                       validity of these components, checks for their presence
+*                       in the program state, and aids in determining the type
+*                       of a given operand.
+*
+\******************************************************************************/
+
+/******************************** Header Files ********************************/
+#include <string.h>
+#include <ctype.h>
+
 #include "param_validation.h"
 
+/************************* Functions  Implementations *************************/
+/**
+ * Checks if the given string is a number.
+ * Negative numbers and numbers with leading '+' are considered valid.
+ *
+ * @param str - The string to check.
+ * @return 1 if the string is a number, and 0 otherwise.
+ */
 int isNumber(const char *str) {
     if (*str == '-' || *str == '+') /* Check if the number is negative */
         str++; /* Skip the minus sign */
@@ -13,6 +39,13 @@ int isNumber(const char *str) {
 }
 
 /******************************************************************************/
+/**
+ * Checks if the given string is a valid register.
+ * A valid register is represented as a string that starts with '@'.
+ *
+ * @param str - The string to check.
+ * @return 1 if the string is a register, and 0 otherwise.
+ */
 int isRegister(const char *str) {
     const char *operand = NULL;
     int i;
@@ -30,6 +63,13 @@ int isRegister(const char *str) {
 }
 
 /******************************************************************************/
+/**
+ * Checks if the given string is a valid label that exists in the program state.
+ *
+ * @param str - The label to check.
+ * @param programState - The current program state.
+ * @return 1 if the label exists in the program state, and 0 otherwise.
+ */
 int isLabel(const char *str, ProgramState *programState) {
     int i;
     Label *labelPtr;
@@ -44,6 +84,14 @@ int isLabel(const char *str, ProgramState *programState) {
 }
 
 /******************************************************************************/
+/**
+ * Checks if the given label exists in the program state and is not external.
+ *
+ * @param label - The label to check.
+ * @param programState - The current program state.
+ * @return TRUE if the label exists in the program state and is not external,
+ *         and FALSE otherwise.
+ */
 Boolean isLabelExists(char *label, ProgramState *programState) {
     int i;
     Label *labelPtr;
@@ -60,6 +108,13 @@ Boolean isLabelExists(char *label, ProgramState *programState) {
 }
 
 /******************************************************************************/
+/**
+ * Returns the index of the given label in the program state's labels list.
+ *
+ * @param str - The label to find.
+ * @param programState - The current program state.
+ * @return The index of the label if found, and -1 otherwise.
+ */
 int getLabelIndex(const char *str, ProgramState *programState) {
     int i;
     Label *labelPtr;
@@ -74,6 +129,12 @@ int getLabelIndex(const char *str, ProgramState *programState) {
 }
 
 /******************************************************************************/
+/**
+ * Returns the index of the given instruction in the instructions list.
+ *
+ * @param instruction - The instruction to find.
+ * @return The index of the instruction if found, and -1 otherwise.
+ */
 int findInstruction(const char *instruction) {
     int instructionIdx;
     const char *comparisonInstruction = instruction;
@@ -94,6 +155,13 @@ int findInstruction(const char *instruction) {
 }
 
 /******************************************************************************/
+/**
+ * Returns the index of the given command in the commands list.
+ * The command comparison is case-insensitive.
+ *
+ * @param command - The command to find.
+ * @return The index of the command if found, and -1 otherwise.
+ */
 int findCommand(char *command) {
     int i;
     /* Convert command to lowercase */
@@ -107,6 +175,14 @@ int findCommand(char *command) {
 }
 
 /******************************************************************************/
+/**
+ * Checks if the given parameter is valid for the expected operand type.
+ *
+ * @param param - The parameter to validate.
+ * @param expectedType - The expected type of the operand.
+ * @param programState - The current program state.
+ * @return 1 if the parameter is valid for the expected operand type, and 0 otherwise.
+ */
 int isValidParam(char *param, OperandType expectedType,
                  ProgramState *programState) {
     ProgramState *currentProgramState = programState;
@@ -130,6 +206,13 @@ int isValidParam(char *param, OperandType expectedType,
 }
 
 /******************************************************************************/
+/**
+ * Determines the type of the given operand.
+ *
+ * @param operand - The operand to check.
+ * @param programState - The current program state.
+ * @return The type of the operand if valid, and OPERAND_TYPE_NONE otherwise.
+ */
 int findParameterType(char *operand, ProgramState *programState) {
     ProgramState *currentProgramState = programState;
     if (isNumber(operand)) {
@@ -143,3 +226,4 @@ int findParameterType(char *operand, ProgramState *programState) {
         return OPERAND_TYPE_NONE; /* not a valid type */
     }
 }
+/******************************************************************************/
