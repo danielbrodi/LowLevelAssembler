@@ -12,6 +12,9 @@
 
 
 /******************************** Header Files ********************************/
+#include <string.h>
+#include <ctype.h>
+
 #include "label_processing.h"
 #include "param_validation.h"
 #include "print_error.h"

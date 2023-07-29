@@ -16,6 +16,8 @@
 \******************************************************************************/
 
 /******************************** Header Files ********************************/
+#include <string.h>
+
 #include "binary_and_ob_processing.h"
 #include "param_validation.h"
 #include "print_error.h"
