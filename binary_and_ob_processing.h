@@ -12,6 +12,8 @@
 #ifndef MAMAN14_BINARY_AND_OB_PROCESSING_H
 #define MAMAN14_BINARY_AND_OB_PROCESSING_H
 
+#include <stdio.h>
+
 #include "utils.h" /* for the Status enum */
 #include "program_constants.h" /* for the ProgramState struct */
 
