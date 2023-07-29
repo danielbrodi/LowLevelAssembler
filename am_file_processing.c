@@ -13,6 +13,9 @@
 /******************************** Header Files ********************************/
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 
 #include "am_file_processing.h"
 #include "label_processing.h"
@@ -20,21 +23,16 @@
 #include "print_error.h"
 
 /******************************************************************************/
-/*
---------------------------------------------------------------------------------
-    ParseFile function processes the .am file, reads each line,
-    and accordingly performs different actions based on the current state of each line.
-    It writes results into a binary file.
-
-Parameters:
-    char *am_file_name - The name of the .am file to be parsed.
-    char *bin_file_name - The name of the binary file to be written to.
-    ProgramState *programState - Pointer to the program state object.
-
-Return:
-    Status - Returns SUCCESS if the file is successfully parsed and processed,
-    FAILURE otherwise.
---------------------------------------------------------------------------------
+/**
+ * Processes the .am file, reads each line, and accordingly performs different
+ * actions based on the current state of each line. It writes results into a binary file.
+ *
+ * @param am_file_name - The name of the .am file to be parsed.
+ * @param bin_file_name - The name of the binary file to be written to.
+ * @param programState - Pointer to the program state object.
+ *
+ * @return Status - Returns SUCCESS if the file is successfully parsed and processed,
+ *                  FAILURE otherwise.
  */
 Status
 ParseFile(char *am_file_name, char *bin_file_name, ProgramState *programState) {

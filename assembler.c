@@ -22,6 +22,8 @@
 
 /******************************** Header Files ********************************/
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "program_constants.h"
 #include "macro_processing.h"
@@ -38,34 +40,24 @@ void freeProgramState(ProgramState *programState);
 void freeAllFiles(char *, char *, char *, char *, char *, char *);
 /******************************************************************************/
 /******************************* Main  Function *******************************/
-/*
----------------------------------------------------------------------------------
-    Serves as the program's entry point. The flow of the program includes:
-
-    1.  Initiation of the program state.
-        The assumption of the program is that the starting memory block is
-        located at address '100'.
-    2. Reading files and appending appropriate extensions(.am, .ext, .ent, .ob).
-    3. Preprocessing: reading and expanding macros.
-    4. Checking labels for any discrepancies.
-    5. Parsing files to understand and validate the syntax.
-    6. Writing all labels, both entry & external to seperated files(.ext, .ent).
-    7. Conversion from binary to base64 and  save in a file (.ob).
-
-    Note: If any of the stages encounters an error or fails, the program will
-    not produce a base64 *.ob file.
-
-    8. Finally, freeing the program state after processing.
-
-Parameters:
-    int argc - The number of command-line arguments.
-    char *argv[] - An array of command-line arguments, which are expected
-                   to be names of the files to be processed.
-
-Returns:
-    int - Returns 0 on successful execution.
----------------------------------------------------------------------------------
-*/
+/**
+ * Serves as the program's entry point. The flow of the program includes:
+ *    1. Initiation of the program state. The assumption of the program is that the starting memory block is
+ *       located at address '100'.
+ *    2. Reading files and appending appropriate extensions(.am, .ext, .ent, .ob).
+ *    3. Preprocessing: reading and expanding macros.
+ *    4. Checking labels for any discrepancies.
+ *    5. Parsing files to understand and validate the syntax.
+ *    6. Writing all labels, both entry & external to separated files(.ext, .ent).
+ *    7. Conversion from binary to base64 and save in a file (.ob).
+ *       Note: If any of the stages encounters an error or fails, the program will not produce a base64 *.ob file.
+ *    8. Finally, freeing the program state after processing.
+ *
+ * @param argc - The number of command-line arguments.
+ * @param argv[] - An array of command-line arguments, which are expected to be names of the files to be processed.
+ *
+ * @return int - Returns 0 on successful execution.
+ */
 int main(int argc, char *argv[]) {
     /* Initialization of structures and variables */
     ProgramState programState;
@@ -150,15 +142,12 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 /******************************************************************************/
-/*
---------------------------------------------------------------------------------
-    Initializes a ProgramState structure by allocating memory for the
-    labels and externalLabels vectors and setting initial values for all members.
-
-Parameters:
-    ProgramState *programState - A pointer to the ProgramState structure to initialize.
---------------------------------------------------------------------------------
-*/
+/**
+ * Initializes a ProgramState structure by allocating memory for the
+ * labels and externalLabels vectors and setting initial values for all members.
+ *
+ * @param programState - A pointer to the ProgramState structure to initialize.
+ */
 void initProgramState(ProgramState *programState) {
     programState->labels = new_vector();
     programState->externalLabels = new_vector();
@@ -167,16 +156,13 @@ void initProgramState(ProgramState *programState) {
     programState->current_line_number = 100; /* assumed starting memory block address */
 }
 /******************************************************************************/
-/*
---------------------------------------------------------------------------------
-    Frees up allocated memory for labels and external labels,
-    to prevent memory leaks and manage memory of dynamic memory allocated arrays
-    in the program.
-
-Parameters:
-    ProgramState *programState - Pointer to the program state object to be freed.
---------------------------------------------------------------------------------
-*/
+/**
+ * Frees up allocated memory for labels and external labels,
+ * to prevent memory leaks and manage memory of dynamic memory allocated arrays
+ * in the program.
+ *
+ * @param programState - Pointer to the ProgramState object to be freed.
+ */
 void freeProgramState(ProgramState *programState) {
     if (programState->labels != NULL) {
         free_vector(programState->labels);
@@ -189,19 +175,16 @@ void freeProgramState(ProgramState *programState) {
     }
 }
 /******************************************************************************/
-/*
---------------------------------------------------------------------------------
-    Frees all dynamically allocated memory used for file name strings.
-
-Parameters:
-    char *file_name_as  - Pointer to the string used for the ".as" file name.
-    char *file_name_am  - Pointer to the string used for the ".am" file name.
-    char *file_name_ent - Pointer to the string used for the ".ent" file name.
-    char *file_name_ext - Pointer to the string used for the ".ext" file name.
-    char *file_name_bin - Pointer to the string used for the ".bin" file name.
-    char *file_name_ob  - Pointer to the string used for the ".ob" file name.
---------------------------------------------------------------------------------
-*/
+/**
+ * Frees all dynamically allocated memory used for file name strings.
+ *
+ * @param file_name_as  - Pointer to the string used for the ".as" file name.
+ * @param file_name_am  - Pointer to the string used for the ".am" file name.
+ * @param file_name_ent - Pointer to the string used for the ".ent" file name.
+ * @param file_name_ext - Pointer to the string used for the ".ext" file name.
+ * @param file_name_bin - Pointer to the string used for the ".bin" file name.
+ * @param file_name_ob  - Pointer to the string used for the ".ob" file name.
+ */
 void freeAllFiles(char *file_name_as, char *file_name_am, char *file_name_ent,
                   char *file_name_ext, char *file_name_bin,
                   char *file_name_ob) {

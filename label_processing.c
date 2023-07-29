@@ -14,6 +14,8 @@
 /******************************** Header Files ********************************/
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "label_processing.h"
 #include "param_validation.h"

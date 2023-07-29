@@ -17,10 +17,12 @@
 
 /******************************** Header Files ********************************/
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "binary_and_ob_processing.h"
 #include "param_validation.h"
 #include "print_error.h"
+#include "binary_and_ob_processing.h"
 
 /************************* Functions  Implementations *************************/
 /**
@@ -264,26 +266,22 @@ void binaryToBase64(const char *input_file, const char *output_file, int IC,
     fclose(outputFile);
 }
 /******************************************************************************/
-/*
---------------------------------------------------------------------------------
-    Processes a line of assembly code by parsing the command or instruction
-    and its parameters, validating their correctness, and then writing them
-    to binary code. It also manages the program state by updating instruction
-    and data counters and handling labels. Errors in the assembly code are
-    reported through appropriate error messages.
-
-Parameters:
-    Line *line - A pointer to the Line structure representing the current
-                 assembly line being processed.
-    FILE *bin_fp - A pointer to the binary output file.
-    ProgramState *programState - A pointer to the ProgramState structure
-                                 representing the current state of the program.
-
-Returns:
-    Status - SUCCESS if the line is processed successfully; FAILURE if any
-             error is encountered during the processing.
---------------------------------------------------------------------------------
-*/
+/**
+ * Processes a line of assembly code by parsing the command or instruction
+ * and its parameters, validating their correctness, and then writing them
+ * to binary code. It also manages the program state by updating instruction
+ * and data counters and handling labels. Errors in the assembly code are
+ * reported through appropriate error messages.
+ *
+ * @param line - A pointer to the Line structure representing the current
+ *               assembly line being processed.
+ * @param bin_fp - A pointer to the binary output file.
+ * @param programState - A pointer to the ProgramState structure
+ *                       representing the current state of the program.
+ *
+ * @return Status - SUCCESS if the line is processed successfully; FAILURE if any
+ *                  error is encountered during the processing.
+ */
 Status ProcessLine(Line *line, FILE *bin_fp, ProgramState *programState) {
     /* Command and instruction indices - used to identify the type of line (command or instruction) */
     char *command = line->input_words[line->has_label];
