@@ -1,6 +1,4 @@
-# Low Level Assembler
-
-![Assembler](https://img.shields.io/badge/Assembler-v1.0-blue.svg)
+# Low Level Assembler [![Assembler](https://img.shields.io/badge/Assembler-v1.0-blue.svg)](#)
 
 ## Overview
 
