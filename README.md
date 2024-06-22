@@ -49,12 +49,150 @@ The program will generate corresponding output files with the following extensio
 - *.ext* for the extern labels file.
 - *.ob* for the binary code file.
 
-### Example
-
 ```bash
 ./assembler example.asm
 ```
 This command will process **example.asm** and generate **example.am**, **example.ent**, **example.ext**, and **example.ob** files.
+
+## Flow Example
+
+### Input File: `example.as`
+
+```assembly
+.entry LENGTH
+.extern W
+MAIN: mov @r3, LENGTH
+LOOP: jmp L1
+prn -5
+bne W
+sub @r1, @r4
+bne L3
+L1: inc K
+.entry LOOP
+jmp W
+END: stop
+STR: .string "abcdef"
+LENGTH: .data 6, -9, 15
+K: .data 22
+.extern L3
+```
+
+### Processing Steps
+
+#### Step 1: Macro Expansion
+
+```assembly
+.entry LENGTH
+.extern W
+MAIN: mov @r3, LENGTH
+LOOP: jmp L1
+prn -5
+bne W
+sub @r1, @r4
+bne L3
+L1: inc K
+.entry LOOP
+jmp W
+END: stop
+STR: .string "abcdef"
+LENGTH: .data 6, -9, 15
+K: .data 22
+.extern L3
+```
+
+#### Step 2: Label Checking
+
+The assembler checks for any discrepancies or errors in the labels, such as undefined labels or duplicate definitions. In this example, no discrepancies were found.
+
+#### Step 3: Parsing and Binary Code Generation
+
+**Binary Machine Code**
+
+| Address | Source Code               | Binary Code         |
+|---------|---------------------------|---------------------|
+| 0100    | MAIN: mov @r3, LENGTH     | 101000001100        |
+|         |                           | 000110000000        |
+|         |                           | 000111110110        |
+| 0103    | LOOP: jmp L1              | 000100101100        |
+|         |                           | 000111000110        |
+| 0105    | prn -5                    | 000110000100        |
+|         |                           | 111111101100        |
+| 0107    | bne W                     | 000101001100        |
+|         |                           | 000000000001        |
+| 0109    | sub @r1, @r4              | 101001110100        |
+|         |                           | 000010010000        |
+| 0111    | bne L3                    | 000101001100        |
+|         |                           | 000000000001        |
+| 0113    | L1: inc K                 | 000011101100        |
+|         |                           | 001000000010        |
+| 0115    | jmp W                     | 000100101100        |
+|         |                           | 000000000001        |
+| 0117    | END: stop                 | 000111100000        |
+| 0120    | STR: .string "abcdef"     | 000001100001        |
+|         |                           | 000001100010        |
+|         |                           | 000001100011        |
+|         |                           | 000001100100        |
+|         |                           | 000001100101        |
+|         |                           | 000001100110        |
+|         |                           | 000000000000        |
+| 0125    | LENGTH: .data 6, -9, 15   | 000000000110        |
+|         |                           | 111111110111        |
+|         |                           | 000000001111        |
+| 0128    | K: .data 22               | 000000010110        |
+
+
+#### Step 4: Writing Output Files
+
+**example.ob**
+
+Binary machine code output file containing the compiled instructions in base64 format.
+
+```
+18 11
+oM
+GA
+H2
+Es
+HG
+GE
+/s
+FM
+AB
+p0
+CQ
+FM
+AB
+Ds
+IC
+Es
+AB
+Hg
+Bh
+Bi
+```
+
+**example.ent**
+
+Entry labels output file listing symbols marked as entry points with their corresponding addresses.<br>
+Listed in decimal (base 10) format.
+
+```
+LOOP 103
+LENGTH 125
+```
+
+**example.ext**
+
+External labels output file listing symbols referenced but not defined within the program.</br>
+Listed in decimal (base 10) format.
+
+```
+W 108
+L3 112
+W 116
+```
+
+> Note: If there are no external labels, the `.ext` file will not be created. </br> Similarly, if there are no entry labels, the `.ent` file will not be created.
 
 ## Files
 
