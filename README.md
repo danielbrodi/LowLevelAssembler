@@ -49,14 +49,16 @@ The program will generate corresponding output files with the following extensio
 - *.ext* for the extern labels file.
 - *.ob* for the binary code file.
 
+#### Run the Command
 ```bash
-./assembler example.asm
+./assembler tests/example.asm
 ```
-This command will process **example.asm** and generate **example.am**, **example.ent**, **example.ext**, and **example.ob** files.
+This command will process **example.asm** located in the **tests** directory and generate **example.am**, **example.ent**, **example.ext**, and **example.ob** files.
 
 ## Flow Example
 
 ### Input File: `example.as`
+The sample example file for running can be found in the [**tests**](./tests) directory, among other test files that you can run.
 
 ```assembly
 .entry LENGTH
