@@ -1,4 +1,4 @@
-# Low Level Assembler [![Assembler](https://img.shields.io/badge/Assembler-v1.0-blue.svg)](#) [![](https://komarev.com/ghpvc/?username=LowLevelAssembler&style=pixel&label=Repo%20Views&color=0e75b6)](#)
+# Low Level Assembler [![Assembler](https://img.shields.io/badge/Assembler-v1.0-blue.svg)](#) [![](https://komarev.com/ghpvc/?username=brodiLowLevelAssembler&style=pixel&label=Repo%20Views&color=0e75b6)](#)
 
 ## Overview
 
